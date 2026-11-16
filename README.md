@@ -7,6 +7,9 @@ trigram, `LIKE` fallbacks, bigram rewrites, jieba, `Intl.Segmenter`. This benchm
 setups on the same data and reports where each one breaks, with paired significance tests instead
 of a single average.
 
+Write-up of the results: [SQLite FTS5 for Chinese, Japanese, Korean: 11 tokenizers tested](https://raytien.me/writing/cjk-fts-bench/)
+([繁體中文](https://raytien.me/writing/cjk-fts-bench/zh/)).
+
 - **11 setups**, from the FTS5 defaults to C extensions and app-level segmenters
 - **2 tasks**: exact substring search over 46,138 Taiwan law articles (Traditional Chinese), and
   ranking on [MIRACL](https://github.com/project-miracl/miracl) with human relevance labels in
