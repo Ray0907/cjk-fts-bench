@@ -1,7 +1,7 @@
 # law_substring
 
 - corpus: 46138 docs, queries: 400, seed 42
-- SQLite 3.54.1, Python 3.15.2, run at 2026-11-16T04:59:17+00:00
+- SQLite 3.50.4, Python 3.13.11, run at 2026-11-16T05:56:13+00:00
 - law_commit: 1e4ee426100b434db58262ed8bff6274d6558498
 - fts5-cjk 79c52dafec1d403ab69e28f89e8c493a8e5ff02b
 - sqlite-better-trigram 851f99f3e14f9dc0606edf40423406d1a2ea2b89
@@ -30,17 +30,17 @@ Cells are macro means per bucket; 'zero' = share of queries with matches in grou
 
 | system | build s | index MB | p50 ms | p95 ms | search errors |
 |---|---|---|---|---|---|
-| unicode61 | 0.54 | 32.1 | 0.02 | 0.04 | 0 |
-| trigram | 1.66 | 48.0 | 0.05 | 0.24 | 0 |
-| trigram_like | 1.58 | 48.0 | 0.16 | 21.65 | 0 |
-| app_bigram | 1.54 | 57.7 | 0.11 | 0.76 | 0 |
-| app_bigram_edge | 1.67 | 65.9 | 0.14 | 0.87 | 0 |
-| app_bigram_first | 1.64 | 61.9 | 0.13 | 1.08 | 0 |
-| jieba | 12.90 | 34.8 | 0.10 | 0.68 | 0 |
-| icu_segmenter | 3.89 | 29.3 | 0.15 | 1.14 | 0 |
-| better_trigram | 0.37 | 32.6 | 0.41 | 1.78 | 0 |
-| fts5_cjk | 0.94 | 38.8 | 0.13 | 1.13 | 0 |
-| fts5_cjk_unigram | 1.24 | 46.8 | 0.23 | 1.05 | 0 |
+| unicode61 | 0.47 | 32.1 | 0.02 | 0.03 | 0 |
+| trigram | 1.52 | 48.0 | 0.04 | 0.20 | 0 |
+| trigram_like | 1.46 | 48.0 | 0.15 | 16.76 | 0 |
+| app_bigram | 1.52 | 57.7 | 0.08 | 0.73 | 0 |
+| app_bigram_edge | 1.65 | 65.9 | 0.10 | 0.97 | 0 |
+| app_bigram_first | 1.50 | 61.9 | 0.09 | 0.78 | 0 |
+| jieba | 11.48 | 34.8 | 0.07 | 0.65 | 0 |
+| icu_segmenter | 3.77 | 29.3 | 0.12 | 1.10 | 0 |
+| better_trigram | 0.37 | 32.6 | 0.35 | 1.63 | 0 |
+| fts5_cjk | 0.95 | 38.8 | 0.10 | 0.82 | 0 |
+| fts5_cjk_unigram | 1.22 | 46.8 | 0.18 | 1.01 | 0 |
 
 ## Failure examples (3 worst queries per system)
 

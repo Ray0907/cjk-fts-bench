@@ -34,11 +34,14 @@ that is a bug in the benchmark.
 3. Run the tests and the benchmarks, then regenerate the leaderboard:
 
    ```sh
-   python -m pytest -q tests
-   python -m bench.run law_substring --systems all --out results/law_substring.json
-   python -m bench.run miracl --data-dir data/miracl --lang zh --max-docs 100000 --out results/miracl_zh.json  # and ja, ko
-   python -m bench.leaderboard --update-readme
+   uv run python -m pytest -q tests
+   uv run python -m bench.run law_substring --systems all --out results/law_substring.json
+   uv run python -m bench.run miracl --data-dir data/miracl --lang zh --max-docs 100000 --out results/miracl_zh.json
+   uv run python -m bench.leaderboard --update-readme
    ```
+
+   Run MIRACL for ja and ko as well, leaving jieba out (the README's Reproduce section has the full
+   loop). Use `uv run` so the results come from the pinned environment in `uv.lock`.
 
    Commit the updated `results/` files with the PR. Don't edit numbers in the README by hand.
 

@@ -1,0 +1,15 @@
+[project]
+name = "cjk-fts-bench"
+version = "0.1.0"
+description = "Benchmark of SQLite FTS5 setups for Chinese, Japanese and Korean text"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+dependencies = ["jieba==0.42.1"]
+
+[dependency-groups]
+dev = ["pytest"]
+data = ["huggingface_hub"]
+
+[tool.uv]
+package = false

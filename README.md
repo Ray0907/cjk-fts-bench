@@ -27,19 +27,19 @@ of a single average.
   first character as an extra token, **added to documents and to queries** (`app_bigram_first`).
   It is best or tied-best on zh, ja and ko. Adding the token to documents only does nothing: that
   is what fts5-cjk does, and it ranks the same as plain bigrams. Cost over plain bigrams: a larger
-  index (+8% zh, +6% ja, +26% ko) and slower ranking queries (p50 zh 3.4 vs 2.2 ms, ja 31 vs 27 ms,
-  ko 40 vs 8 ms). Like plain bigrams, it misses a single-character query that only occurs at the
+  index (+8% zh, +6% ja, +26% ko) and slower ranking queries (p50 zh 3.3 vs 2.0 ms, ja 32 vs 26 ms,
+  ko 38 vs 8 ms). Like plain bigrams, it misses a single-character query that only occurs at the
   end of a run (98.4% substring recall).
 - **Also the last character (`app_bigram_edge`):** ranks the same as `app_bigram_first` (no
   significant difference in any language) and finds every exact match, but costs more: index +15%
-  zh, +12% ja, +51% ko and p50 zh 5.3 ms, ja 51 ms, ko 108 ms. Choose it only if you need exact
+  zh, +12% ja, +51% ko and p50 zh 5.0 ms, ja 48 ms, ko 96 ms. Choose it only if you need exact
   single-character matches.
 - **Japanese only:** ICU word segmentation (`Intl.Segmenter`) has the highest Japanese score
   (statistically tied with `app_bigram_edge`) and the smallest index. Cost: it needs Node.js and
-  ranking queries are slow (p50 73 ms on ja vs 27 ms for plain bigrams). Don't use it for Korean:
+  ranking queries are slow (p50 73 ms on ja vs 26 ms for plain bigrams). Don't use it for Korean:
   it splits hangul only at spaces, so 검색을 never matches 검색.
 - **Every exact match, little code:** `trigram` plus a `LIKE` fallback for short queries finds
-  everything, but the fallback is a full scan, so it should slow down as data grows (p95 22 ms on
+  everything, but the fallback is a full scan, so it should slow down as data grows (p95 17 ms on
   46k articles; scaling was not measured). Its ranking is poor (nDCG@10 0.251 on zh, same as
   `trigram`). fts5-cjk and better-trigram also find everything, without the scan.
 - **No application code:** a C tokenizer. fts5-cjk ranks the same as app-level bigrams
@@ -55,17 +55,17 @@ Best value per column in bold. n/a = not run (jieba segments Chinese only).
 
 | system | Law substring recall | MIRACL zh nDCG@10 | MIRACL ja nDCG@10 | MIRACL ko nDCG@10 | zh p50 ms | zh index MB |
 |---|---|---|---|---|---|---|
-| `unicode61` | 4.9% | 0.008 | 0.128 | 0.352 | **0.06** | 69 |
-| `trigram` | 59.5% | 0.251 | 0.465 | 0.473 | 0.52 | 130 |
-| `trigram_like` | **100.0%** | 0.251 | 0.465 | 0.473 | 0.53 | 130 |
-| `app_bigram` | 98.4% | 0.379 | 0.536 | 0.510 | 2.25 | 118 |
-| `app_bigram_edge` | **100.0%** | **0.429** | 0.557 | 0.547 | 5.35 | 136 |
-| `app_bigram_first` | 98.4% | 0.423 | 0.560 | **0.549** | 3.42 | 127 |
-| `jieba` | 61.3% | 0.374 | n/a | n/a | 11.46 | 77 |
-| `icu_segmenter` | 71.1% | 0.406 | **0.569** | 0.359 | 11.71 | **63** |
+| `unicode61` | 4.9% | 0.008 | 0.128 | 0.352 | **0.04** | 69 |
+| `trigram` | 59.5% | 0.251 | 0.465 | 0.473 | 0.46 | 130 |
+| `trigram_like` | **100.0%** | 0.251 | 0.465 | 0.473 | 0.42 | 130 |
+| `app_bigram` | 98.4% | 0.379 | 0.536 | 0.510 | 2.03 | 118 |
+| `app_bigram_edge` | **100.0%** | **0.429** | 0.557 | 0.547 | 5.02 | 136 |
+| `app_bigram_first` | 98.4% | 0.423 | 0.560 | **0.549** | 3.31 | 127 |
+| `jieba` | 61.3% | 0.374 | n/a | n/a | 11.35 | 77 |
+| `icu_segmenter` | 71.1% | 0.406 | **0.569** | 0.359 | 12.40 | **63** |
 | `better_trigram` | **100.0%** | 0.419 | 0.457 | 0.403 | 50.36 | 68 |
-| `fts5_cjk` | **100.0%** | 0.378 | 0.535 | 0.506 | 2.15 | 86 |
-| `fts5_cjk_unigram` | **100.0%** | 0.377 | 0.536 | 0.507 | 3.84 | 104 |
+| `fts5_cjk` | **100.0%** | 0.378 | 0.535 | 0.506 | 2.02 | 86 |
+| `fts5_cjk_unigram` | **100.0%** | 0.377 | 0.536 | 0.507 | 3.76 | 104 |
 
 Paired difference in nDCG@10 against `app_bigram` (95% bootstrap CI, randomization p):
 
@@ -84,7 +84,7 @@ Paired difference in nDCG@10 against `app_bigram` (95% bootstrap CI, randomizati
 
 Bold = the 95% CI excludes zero (no multiple-comparison correction; see Limits).
 
-Run environments: law: SQLite 3.54.1, Python 3.15.2, macOS-27.0.1-arm64-arm-64bit-Mach-O; MIRACL zh: SQLite 3.54.1, Python 3.15.2, macOS-27.0.1-arm64-arm-64bit-Mach-O; MIRACL ja: SQLite 3.54.1, Python 3.15.2, macOS-27.0.1-arm64-arm-64bit-Mach-O; MIRACL ko: SQLite 3.54.1, Python 3.15.2, macOS-27.0.1-arm64-arm-64bit-Mach-O.
+Run environments: law: SQLite 3.50.4, Python 3.13.11, macOS-27.0.1-arm64-arm-64bit-Mach-O; MIRACL zh: SQLite 3.50.4, Python 3.13.11, macOS-27.0.1-arm64-arm-64bit-Mach-O; MIRACL ja: SQLite 3.50.4, Python 3.13.11, macOS-27.0.1-arm64-arm-64bit-Mach-O; MIRACL ko: SQLite 3.50.4, Python 3.13.11, macOS-27.0.1-arm64-arm-64bit-Mach-O.
 <!-- LEADERBOARD:END -->
 
 ## Findings
@@ -96,7 +96,7 @@ Run environments: law: SQLite 3.54.1, Python 3.15.2, macOS-27.0.1-arm64-arm-64bi
    ranks the same as `app_bigram_edge` (difference −0.006 zh, +0.003 ja, +0.002 ko, none
    significant), while the last character alone adds nothing measurable and most of the cost. In
    Korean the last character of a word is usually a particle (는, 의, 가, 은) found in 52–79% of
-   passages, which is why `app_bigram_edge` queries take 108 ms there against 8 ms for plain
+   passages, which is why `app_bigram_edge` queries take 96 ms there against 8 ms for plain
    bigrams. This ablation was done after seeing the dev-set results, on the same queries, so it is
    not held out. The gain needs the query-side terms: fts5-cjk adds them to documents
    only and gains nothing. It costs index size and query time, most of all in Korean.
@@ -208,31 +208,36 @@ Problems found while building the benchmark, kept here so the results can be jud
 
 ## Reproduce
 
+With [uv](https://docs.astral.sh/uv/), which installs the pinned Python and dependencies from
+`uv.lock` (its Python can load SQLite extensions, including on macOS):
+
 ```sh
-pip install -r requirements.txt
 ./ext/build_ext.sh                 # clones both C tokenizers at pinned commits and compiles them
-python -m pytest -q tests
+uv run python -m pytest -q tests
 
-python -m bench.run law_substring --systems all --out results/law_substring.json
-python -m bench.report results/law_substring.json > results/law_substring.md
+uv run python -m bench.run law_substring --systems all --out results/law_substring.json
+uv run python -m bench.report results/law_substring.json > results/law_substring.md
 ```
 
-MIRACL data comes from Hugging Face (you may need to accept the dataset terms and log in first):
+MIRACL data comes from Hugging Face (you may need to accept the dataset terms and log in first).
+jieba segments Chinese only, so it is left out for ja and ko:
 
 ```sh
-pip install huggingface_hub
+NOJIEBA=$(uv run python -c "from bench.systems import SYSTEMS; print(','.join(n for n in SYSTEMS if n != 'jieba'))")
 for lang in zh ja ko; do
-  hf download miracl/miracl --repo-type dataset --include "miracl-v1.0-$lang/*" --local-dir data/miracl
-  hf download miracl/miracl-corpus --repo-type dataset --include "miracl-corpus-v1.0-$lang/*" --local-dir data/miracl
-  python -m bench.run miracl --data-dir data/miracl --lang $lang --max-docs 100000 --out results/miracl_$lang.json
-  python -m bench.report results/miracl_$lang.json > results/miracl_$lang.md
+  uv run --group data hf download miracl/miracl --repo-type dataset --include "miracl-v1.0-$lang/*" --local-dir data/miracl
+  uv run --group data hf download miracl/miracl-corpus --repo-type dataset --include "miracl-corpus-v1.0-$lang/*" --local-dir data/miracl
+  systems=all; [ "$lang" != zh ] && systems=$NOJIEBA
+  uv run python -m bench.run miracl --data-dir data/miracl --lang $lang --max-docs 100000 --systems $systems --out results/miracl_$lang.json
+  uv run python -m bench.report results/miracl_$lang.json > results/miracl_$lang.md
 done
-python -m bench.leaderboard --update-readme
+uv run python -m bench.leaderboard --update-readme
 ```
 
-`icu_segmenter` needs Node.js. On macOS, use a Python that allows SQLite extensions (e.g. Homebrew's);
-Apple's system Python does not. Versions of SQLite, Python and every dependency are recorded in the
-results metadata.
+`icu_segmenter` needs Node.js. Without uv: `pip install -r requirements.txt` and run the same
+commands without `uv run`, using a Python whose `sqlite3` can load extensions (Homebrew's can;
+Apple's system Python cannot). The published results were run with the uv-pinned Python. Versions
+of SQLite, Python and every dependency are recorded in the results metadata.
 
 To add a tokenizer, see [CONTRIBUTING.md](CONTRIBUTING.md).
 

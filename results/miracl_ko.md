@@ -1,7 +1,7 @@
 # miracl
 
 - corpus: 100000 docs, queries: 213, seed 42
-- SQLite 3.54.1, Python 3.15.2, run at 2026-11-16T05:11:28+00:00
+- SQLite 3.50.4, Python 3.13.11, run at 2026-11-16T06:07:34+00:00
 - fts5-cjk 79c52dafec1d403ab69e28f89e8c493a8e5ff02b
 - sqlite-better-trigram 851f99f3e14f9dc0606edf40423406d1a2ea2b89
 - sqlite (for fts5_unicode2.c) version-3.53.1 ccd445d76a9362c63add000354fac84ba9022176
@@ -28,16 +28,16 @@
 
 | system | build s | index MB | p50 ms | p95 ms | search errors |
 |---|---|---|---|---|---|
-| unicode61 | 2.20 | 71.8 | 0.63 | 6.49 | 0 |
-| trigram | 7.06 | 127.0 | 8.20 | 61.88 | 0 |
-| trigram_like | 7.02 | 127.0 | 6.76 | 53.96 | 0 |
-| app_bigram | 5.09 | 110.0 | 8.06 | 47.03 | 0 |
-| app_bigram_edge | 5.73 | 165.7 | 108.53 | 211.91 | 0 |
-| app_bigram_first | 5.07 | 138.7 | 40.06 | 102.26 | 0 |
-| icu_segmenter | 9.99 | 71.2 | 0.81 | 12.71 | 0 |
-| better_trigram | 2.92 | 85.3 | 1.23 | 7.85 | 0 |
-| fts5_cjk | 3.00 | 97.1 | 8.46 | 57.28 | 0 |
-| fts5_cjk_unigram | 3.38 | 104.7 | 15.74 | 74.83 | 0 |
+| unicode61 | 2.01 | 71.8 | 0.56 | 6.52 | 0 |
+| trigram | 6.24 | 127.0 | 6.68 | 49.24 | 0 |
+| trigram_like | 6.34 | 127.0 | 6.55 | 50.73 | 0 |
+| app_bigram | 4.54 | 110.0 | 8.24 | 41.41 | 0 |
+| app_bigram_edge | 5.89 | 165.7 | 96.15 | 176.52 | 0 |
+| app_bigram_first | 4.89 | 138.7 | 37.81 | 88.77 | 0 |
+| icu_segmenter | 9.71 | 71.2 | 0.77 | 9.69 | 0 |
+| better_trigram | 2.57 | 85.3 | 1.14 | 6.44 | 0 |
+| fts5_cjk | 2.84 | 97.1 | 8.25 | 53.31 | 0 |
+| fts5_cjk_unigram | 2.96 | 104.7 | 14.45 | 74.35 | 0 |
 
 ## Failure examples (3 worst queries per system)
 
