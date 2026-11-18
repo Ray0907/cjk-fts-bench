@@ -6,9 +6,17 @@
 Systems come from `bench.systems.SYSTEMS` (override module with env BENCH_SYSTEMS_MODULE, used by tests).
 
 Harness layout: the FTS table lives in the main temp db file; the raw table `{table}_raw` (original
-text) lives in an ATTACHed second temp db file (schema "raw"), so the reported index size (size of the main
-file after VACUUM) contains only what the system adds, not the raw copy. Unqualified `{table}_raw` still
-resolves for systems that use it. Build time = prep_doc + FTS insert + commit (raw insert is untimed).
+text) lives in an ATTACHed second temp db file (schema "raw"). Unqualified `{table}_raw` still resolves for
+systems that use it. Build time = prep_doc + FTS insert + commit (raw insert is untimed).
+
+Index size is measured three ways, each the file size after VACUUM (page size 4096, one insert transaction):
+  index_bytes              the FTS5 table as the system uses it, including FTS5's stored copy of the text it
+                           indexes; app-level systems store their transformed text (e.g. bigram-rewritten),
+                           tokenizer-level systems the original. This is the size reported before 2026-11.
+  index_bytes_contentless  the same table with content='' (inverted index only), built separately, untimed.
+  raw_table_bytes          (metadata, per corpus) a plain table holding the original text once.
+"index + one raw copy" = index_bytes_contentless + raw_table_bytes: what a deployment needs at least to search
+and to show results, whichever system it uses.
 Queries with empty ground truth (possible with --limit-docs) are dropped for law_substring.
 """
 import argparse
@@ -73,6 +81,36 @@ def build_index(system, texts, tmpdir):
     return conn, build, size
 
 
+def contentless_index_bytes(system, texts, tmpdir):
+    """Size of the system's inverted index alone (FTS5 content=''), built like build_index (untimed)."""
+    path = os.path.join(tmpdir, f"{system.name}_contentless.db")
+    conn = sqlite3.connect(path)
+    system.setup(conn)
+    system.create_table(conn, TABLE, contentless=True)
+    with conn:
+        conn.executemany(f"INSERT INTO {TABLE}(rowid, text) VALUES (?,?)",
+                         ((i, system.prep_doc(t)) for i, t in enumerate(texts)))
+    conn.execute("VACUUM")
+    conn.close()
+    size = os.path.getsize(path)
+    os.remove(path)
+    return size
+
+
+def raw_table_bytes(texts, tmpdir):
+    """Size of one plain table holding the original text (the copy any deployment keeps to show results)."""
+    path = os.path.join(tmpdir, "raw_only.db")
+    conn = sqlite3.connect(path)
+    conn.execute(f"CREATE TABLE {TABLE}_raw(rowid INTEGER PRIMARY KEY, text TEXT)")
+    with conn:
+        conn.executemany(f"INSERT INTO {TABLE}_raw(rowid, text) VALUES (?,?)", enumerate(texts))
+    conn.execute("VACUUM")
+    conn.close()
+    size = os.path.getsize(path)
+    os.remove(path)
+    return size
+
+
 def aggregate(rows, kind):
     """rows: per-query dicts. Macro means per bucket + 'all'."""
     by = defaultdict(list)
@@ -127,8 +165,9 @@ def run_systems(names, texts, evaluate, kind, systems):
             conn, build, size = build_index(s, texts, td)
             rows = evaluate(s, conn)
             conn.close()
+            size_cl = contentless_index_bytes(s, texts, td)
         result[name] = {"description": s.description, "build_seconds": build, "index_bytes": size,
-                        "buckets": aggregate(rows, kind), "queries": rows}
+                        "index_bytes_contentless": size_cl, "buckets": aggregate(rows, kind), "queries": rows}
         a = result[name]["buckets"]["all"]
         print(f"      build {build:.2f}s size {size/1e6:.1f}MB " +
               " ".join(f"{k}={a[k]:.3f}" for k in a if k in ("recall", "precision", "ndcg10", "recall100")),
@@ -220,7 +259,9 @@ def task_law(args, systems):
 
     names = pick_systems(args.systems, systems)
     result, skipped = run_systems(names, texts, evaluate, "substring", systems)
-    md = metadata("law_substring", len(texts), {
+    with tempfile.TemporaryDirectory(prefix="cjkbench_") as td:
+        raw_bytes = raw_table_bytes(texts, td)
+    md = metadata("law_substring", len(texts), {"raw_table_bytes": raw_bytes,
         "law_source": data_law.REPO, "law_commit": data_law.commit_hash(), "n_queries": len(qs),
         "queries_dropped_empty_ground_truth": dropped,
         "limit_docs": args.limit_docs, "limit_queries": args.limit_queries})
@@ -249,8 +290,11 @@ def task_miracl(args, systems):
 
     names = pick_systems(args.systems, systems)
     result, skipped = run_systems(names, texts, evaluate, "miracl", systems)
+    with tempfile.TemporaryDirectory(prefix="cjkbench_") as td:
+        raw_bytes = raw_table_bytes(texts, td)
     md = metadata("miracl", len(texts), {"lang": args.lang, "split": args.split, "max_docs": args.max_docs,
-                                         "n_queries": len(qs), "data_dir": args.data_dir})
+                                         "n_queries": len(qs), "data_dir": args.data_dir,
+                                         "raw_table_bytes": raw_bytes})
     return {"metadata": md, "systems": result, "skipped": skipped}
 
 

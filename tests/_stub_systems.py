@@ -19,8 +19,9 @@ class _Base:
     def setup(self, conn):
         pass
 
-    def create_table(self, conn, table):
-        conn.execute(f"CREATE VIRTUAL TABLE {table} USING fts5(text, tokenize='{self.tok}')")
+    def create_table(self, conn, table, contentless=False):
+        opt = ", content=''" if contentless else ""
+        conn.execute(f"CREATE VIRTUAL TABLE {table} USING fts5(text, tokenize='{self.tok}'{opt})")
 
     def prep_doc(self, text):
         return text

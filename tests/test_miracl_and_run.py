@@ -51,13 +51,15 @@ def test_end_to_end_miracl(tmp_path):
     assert r["metadata"]["tool_versions"].get("jieba")  # tool versions are recorded with every run
     t = r["systems"]["trigram"]
     assert len(t["queries"]) == 5 and t["index_bytes"] > 0 and t["build_seconds"] > 0
+    # Index size three ways: the contentless index is smaller than the table with its stored copy.
+    assert 0 < t["index_bytes_contentless"] < t["index_bytes"] and r["metadata"]["raw_table_bytes"] > 0
     for s in r["systems"].values():
         assert 0 <= s["buckets"]["all"]["ndcg10"] <= 1
     # Sentence queries must actually retrieve something; an all-zero run is a harness bug.
     assert sum(q["s"] > 0 for q in t["queries"]) >= 3, "sentence queries retrieve nothing: harness bug"
     assert t["buckets"]["all"]["ndcg10"] > 0
     md = report.render(r)
-    assert "nDCG@10" in md and "Skipped" in md
+    assert "nDCG@10" in md and "Skipped" in md and "index only MB" in md
 
 
 def test_law_smoke(tmp_path):

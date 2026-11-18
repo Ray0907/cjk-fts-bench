@@ -98,8 +98,10 @@ class System:
     def setup(self, conn: sqlite3.Connection) -> None:
         pass
 
-    def create_table(self, conn: sqlite3.Connection, table: str) -> None:
-        conn.execute(f"CREATE VIRTUAL TABLE {table} USING fts5(text, tokenize={self.tokenize!r})")
+    def create_table(self, conn: sqlite3.Connection, table: str, contentless: bool = False) -> None:
+        # contentless=True (content='') keeps only the inverted index; used to measure index size.
+        opt = ", content=''" if contentless else ""
+        conn.execute(f"CREATE VIRTUAL TABLE {table} USING fts5(text, tokenize={self.tokenize!r}{opt})")
 
     def prep_doc(self, text: str) -> str:
         return text

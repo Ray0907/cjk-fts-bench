@@ -53,12 +53,28 @@ def render(res):
         out += ["", "Cells are macro means per bucket; 'zero' = share of queries with matches in ground truth "
                 "but none returned. Precision is undefined for a query that returns nothing, so it is the mean over "
                 "the n queries that returned at least one article." if task == "law_substring" else "", "",
-                "## Cost", "",
-                "| system | build s | index MB | p50 ms | p95 ms | search errors |", "|---|---|---|---|---|---|"]
-        for n, s in systems.items():
-            a = s["buckets"]["all"]
-            out.append(f"| {n} | {s['build_seconds']:.2f} | {s['index_bytes'] / 1e6:.1f} | "
-                       f"{a['p50_ms']:.2f} | {a['p95_ms']:.2f} | {a['errors']} |")
+                "## Cost", ""]
+        three = all("index_bytes_contentless" in s for s in systems.values()) and md.get("raw_table_bytes")
+        if three:
+            raw = md["raw_table_bytes"]
+            out += ["| system | build s | index MB (default) | index only MB | index + raw MB | p50 ms | p95 ms "
+                    "| search errors |", "|---|---|---|---|---|---|---|---|"]
+            for n, s in systems.items():
+                a = s["buckets"]["all"]
+                out.append(f"| {n} | {s['build_seconds']:.2f} | {s['index_bytes'] / 1e6:.1f} | "
+                           f"{s['index_bytes_contentless'] / 1e6:.1f} | "
+                           f"{(s['index_bytes_contentless'] + raw) / 1e6:.1f} | "
+                           f"{a['p50_ms']:.2f} | {a['p95_ms']:.2f} | {a['errors']} |")
+            out += ["", "Index size, MB = 10^6 bytes, after VACUUM. default = the FTS5 table with its stored copy of "
+                    "what the system indexes (transformed text for app-level systems, original text otherwise). "
+                    "index only = the same table with content=''. index + raw = index only plus one plain table "
+                    f"holding the original text ({raw / 1e6:.1f} MB)."]
+        else:
+            out += ["| system | build s | index MB | p50 ms | p95 ms | search errors |", "|---|---|---|---|---|---|"]
+            for n, s in systems.items():
+                a = s["buckets"]["all"]
+                out.append(f"| {n} | {s['build_seconds']:.2f} | {s['index_bytes'] / 1e6:.1f} | "
+                           f"{a['p50_ms']:.2f} | {a['p95_ms']:.2f} | {a['errors']} |")
         out += ["", "## Failure examples (3 worst queries per system)", ""]
         for n, s in systems.items():
             key = "recall" if task == "law_substring" else "ndcg10"
