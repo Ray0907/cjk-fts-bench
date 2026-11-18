@@ -27,8 +27,8 @@ Python rule (`'first'` ↔ `fts5_cjk_qfirst`, `'edge'` ↔ `fts5_cjk_qedge`)?
 The two `'first'` differences (ja qid 303 and 386, both about 『日本の熱い日々 謀殺・下山事件』) come from the
 benchmark side. Its CJK class (`CJK_CLASS`) leaves out 々〆〇, so `drop_run_unigrams` treats the run-final 々 of
 日本の熱い日々 as a run of its own and keeps it. fts5-cjk counts 々 as part of the run, so for the tokenizer it is
-that run's last character, and `cjk_rank_query(..., 'first')` leaves it out. The top 10 are identical for both
-queries. Fixing the class would change `app_bigram`'s dev results, which cannot be re-run here
+that run's last character, and `cjk_rank_query(..., 'first')` leaves it out. Both queries return the same top-10
+set (for qid 386 the order differs at ranks 3 and 4). Fixing the class would change `app_bigram`'s dev results, which cannot be re-run here
 (`docs/follow-ups.md`).
 
 The 128-term cap in `cjk_rank_query()` was sized from these queries: a first build with a cap of 64 truncated

@@ -49,7 +49,7 @@ document or test that shows them. A statement for which no source could be given
 | 28 | dev: within ±0.01 in zh and ja; ko interval too wide | `stats.md` dev: zh yes, ja yes, ko no (90% CI [−0.0115, +0.0026]) |
 | 29 | index only: fts5-cjk +18% zh, +15% ja, +60% ko, +20% law; with one raw copy for both +9 / +7 / +24 / +9% | `stats.md` § Index size: +17.6 / +15.2 / +60.3 / +19.7%; +9.2 / +7.3 / +24.1 / +8.8% |
 | 30 | because it also indexes each run's first and last character | contentless sizes: fts5_cjk equals app_bigram_edge in zh (50.5 MB) and ko (52.3 MB), law 19.1 MB both; ja 64.3 vs 63.8 MB |
-| 31 | as usually deployed: fts5-cjk's table 27% / 35% / 12% / 33% smaller than the app-level table alone (12–35% in Corrections), 38% to 50% smaller than the app-level table plus a raw copy | `stats.md` § Index size, default column −26.8 / −34.5 / −11.9 / −32.8%; as deployed column −44.5 / −50.3 / −38.3 / −49.9% (zh / ja / ko train, law) |
+| 31 | as usually deployed: fts5-cjk's table 27% / 35% / 12% / 33% smaller than the app-level table alone (12–35% in Corrections) | `stats.md` § Index size, default column −26.8 / −34.5 / −11.9 / −32.8% (zh / ja / ko train, law) |
 | 32 | highlight()/snippet() return the original text for fts5-cjk, bigram text for app-level | `tests/test_systems.py::test_highlight_returns_original_text_only_for_tokenizer_level_systems` (highlight; snippet uses the same offsets, see the audit's `highlight_snippet_examples.txt`) |
 | 33 | better-trigram top in Chinese; p50 50 ms zh; behind in ja and ko | `stats.md` zh train top; dev zh `p50_ms` 50.36; pairs better_trigram − app_bigram ja/ko negative |
 
@@ -109,9 +109,9 @@ document or test that shows them. A statement for which no source could be given
 | 62 | Corrections 4: jieba vs bigrams on Simplified +0.027 (train) | #45 |
 | 63 | Corrections 4: no SQLite errors occurred | law and ko train `buckets.all.errors` = 0 for every system |
 
-Pre-existing sentences left for the maintainer (on main before this series): "(found by an independent review)" in
-Correction 2 (who did that review is not recorded here) and "(the fix several agent-memory projects shipped)" in the
-`trigram_like` row (no source in the repository).
+Two sentences that were on main before this series were changed on the maintainer's instruction: Correction 2 now
+reads "(found in my own later review)" instead of "(found by an independent review)", and the unsourced
+"(the fix several agent-memory projects shipped)" was removed from the `trigram_like` row.
 
 Removed or rewritten because no source supported them as written: "best or tied-best on zh, ja and ko"; "ranks the
 same as plain bigrams" (now: within ±0.01, with the intervals); "the last character alone adds nothing measurable"

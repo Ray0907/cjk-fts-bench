@@ -75,8 +75,7 @@ only have train results come from one run in a Linux VM.
   depends on how each is deployed (train samples and the law corpus; see Method):
   - *As usually deployed*, an app-level FTS5 table stores its bigram-rewritten text, so the original
     must be kept elsewhere to show results. There fts5-cjk's table is 27% (zh), 35% (ja), 12% (ko)
-    and 33% (law) smaller than the app-level table alone, and 38% to 50% smaller than the app-level
-    table plus a raw copy.
+    and 33% (law) smaller than the app-level table alone.
   - *Inverted index only* (contentless or external-content tables), or index plus one raw copy for
     both: fts5-cjk is larger, +18%, +15%, +60%, +20% for the index and +9%, +7%, +24%, +9% with the
     raw copy, because it also indexes each run's first and last character.
@@ -230,7 +229,7 @@ Run environments: law: SQLite 3.53.1, Python 3.13.18, Node v22.23.5 (ICU 78.3), 
 |---|---|
 | `unicode61` | FTS5 default. A whole CJK run becomes one token. |
 | `trigram` | Built-in trigram tokenizer. Queries under 3 characters match nothing. |
-| `trigram_like` | Trigram, falling back to a `LIKE` scan for queries under 3 characters or when FTS finds nothing (the fix several agent-memory projects shipped). Ranks exactly like `trigram`. |
+| `trigram_like` | Trigram, falling back to a `LIKE` scan for queries under 3 characters or when FTS finds nothing. Ranks exactly like `trigram`. |
 | `app_bigram` | App-level overlapping CJK bigrams + unicode61, the common "few-line fix". |
 | `app_bigram_edge` | `app_bigram` plus each CJK run's first and last character as extra tokens. |
 | `app_bigram_first` | `app_bigram` plus each CJK run's first character only. Added after an ablation of `app_bigram_edge` on the dev queries (Finding 1). |
@@ -355,7 +354,7 @@ Problems found while building the benchmark, kept here so the results can be jud
    through the exact-phrase path, so no system returned anything. The fixture test only checked that
    scores were between 0 and 1. Fixed with a separate ranking path; the test now fails on an
    all-empty run.
-2. **Ranking favoured fts5-cjk (found by an independent review).** Query tokens were read back in
+2. **Ranking favoured fts5-cjk (found in my own later review).** Query tokens were read back in
    *document* mode, where fts5-cjk adds each run's first and last character. fts5-cjk therefore sent
    extra OR terms no other bigram system got, and appeared to lead `app_bigram` by 0.05 nDCG@10.
    Removing those terms erased the lead; adding them to `app_bigram` reproduced it exactly. The
@@ -443,7 +442,7 @@ To add a tokenizer, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Code: MIT ([LICENSE](LICENSE)). Corpora and dictionaries are downloaded at run time and not
 redistributed. The result files in `results/` and `audit/` do contain the query strings of each task
-(MIRACL questions with their query and passage ids, dictionary headwords, short spans of law text) but
+(MIRACL questions with their query ids, dictionary headwords, short spans of law text) but
 no passage text:
 
 - Taiwan laws: Ministry of Justice open data, Open Government Data License, version 1.0
