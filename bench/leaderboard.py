@@ -77,7 +77,7 @@ def build() -> str:
                 s = fmt.format(v)
                 cells.append(f"**{s}**" if i in best and abs(v - best[i]) < 1e-12 else s)
         lines.append(f"| `{n}` | " + " | ".join(cells) + " |")
-    out = ["Best value per column in bold. n/a = not run (jieba segments Chinese only).", "", *lines]
+    out = ["Best value per column in bold. n/a = not run (jieba segments Chinese only; `jieba_big` uses jieba's Traditional Chinese dictionary and runs on the law task only).", "", *lines]
 
     if runs:
         out += ["", f"Paired difference in nDCG@10 against `{BASELINE}` (95% bootstrap CI, randomization p):",

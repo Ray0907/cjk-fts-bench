@@ -54,7 +54,7 @@ Write-up of the results: [SQLite FTS5 for Chinese, Japanese, Korean: 11 tokenize
 ## Leaderboard
 
 <!-- LEADERBOARD:START -->
-Best value per column in bold. n/a = not run (jieba segments Chinese only).
+Best value per column in bold. n/a = not run (jieba segments Chinese only; `jieba_big` uses jieba's Traditional Chinese dictionary and runs on the law task only).
 
 | system | Law substring recall | MIRACL zh nDCG@10 | MIRACL ja nDCG@10 | MIRACL ko nDCG@10 | zh p50 ms | zh index MB |
 |---|---|---|---|---|---|---|
@@ -65,6 +65,7 @@ Best value per column in bold. n/a = not run (jieba segments Chinese only).
 | `app_bigram_edge` | **100.0%** | **0.429** | 0.557 | 0.547 | 5.02 | 136 |
 | `app_bigram_first` | 98.4% | 0.423 | 0.560 | **0.549** | 3.31 | 127 |
 | `jieba` | 61.3% | 0.374 | n/a | n/a | 11.35 | 77 |
+| `jieba_big` | 71.6% | n/a | n/a | n/a | n/a | n/a |
 | `icu_segmenter` | 71.1% | 0.406 | **0.569** | 0.359 | 12.40 | **63** |
 | `better_trigram` | **100.0%** | 0.419 | 0.457 | 0.403 | 50.36 | 68 |
 | `fts5_cjk` | **100.0%** | 0.378 | 0.535 | 0.506 | 2.02 | 86 |
@@ -80,6 +81,7 @@ Paired difference in nDCG@10 against `app_bigram` (95% bootstrap CI, randomizati
 | `app_bigram_edge` | **+0.050** [+0.034, +0.067] p<0.0001 | **+0.021** [+0.013, +0.030] p<0.0001 | **+0.037** [+0.023, +0.053] p<0.0001 |
 | `app_bigram_first` | **+0.045** [+0.030, +0.059] p<0.0001 | **+0.024** [+0.016, +0.032] p<0.0001 | **+0.039** [+0.023, +0.055] p<0.0001 |
 | `jieba` | -0.005 [-0.025, +0.015] p=0.64 | n/a | n/a |
+| `jieba_big` | n/a | n/a | n/a |
 | `icu_segmenter` | **+0.028** [+0.006, +0.051] p=0.014 | **+0.033** [+0.018, +0.048] p=0.0002 | **-0.151** [-0.189, -0.113] p<0.0001 |
 | `better_trigram` | **+0.041** [+0.013, +0.068] p=0.0031 | **-0.079** [-0.102, -0.056] p<0.0001 | **-0.107** [-0.135, -0.079] p<0.0001 |
 | `fts5_cjk` | -0.001 [-0.006, +0.004] p=0.727 | -0.001 [-0.005, +0.003] p=0.719 | -0.004 [-0.013, +0.004] p=0.315 |
@@ -87,7 +89,7 @@ Paired difference in nDCG@10 against `app_bigram` (95% bootstrap CI, randomizati
 
 Bold = the 95% CI excludes zero (no multiple-comparison correction; see Limits).
 
-Run environments: law: SQLite 3.50.4, Python 3.13.11, macOS-27.0.1-arm64-arm-64bit-Mach-O; MIRACL zh: SQLite 3.50.4, Python 3.13.11, macOS-27.0.1-arm64-arm-64bit-Mach-O; MIRACL ja: SQLite 3.50.4, Python 3.13.11, macOS-27.0.1-arm64-arm-64bit-Mach-O; MIRACL ko: SQLite 3.50.4, Python 3.13.11, macOS-27.0.1-arm64-arm-64bit-Mach-O.
+Run environments: law: SQLite 3.53.1, Python 3.13.18, Linux-6.18.44-fc-v595-x86_64-with-glibc2.39; MIRACL zh: SQLite 3.50.4, Python 3.13.11, macOS-27.0.1-arm64-arm-64bit-Mach-O; MIRACL ja: SQLite 3.50.4, Python 3.13.11, macOS-27.0.1-arm64-arm-64bit-Mach-O; MIRACL ko: SQLite 3.50.4, Python 3.13.11, macOS-27.0.1-arm64-arm-64bit-Mach-O.
 <!-- LEADERBOARD:END -->
 
 ## Findings
