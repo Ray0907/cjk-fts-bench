@@ -40,8 +40,9 @@ that is a bug in the benchmark.
    uv run python -m bench.leaderboard --update-readme
    ```
 
-   Run MIRACL for ja and ko as well, leaving jieba out (the README's Reproduce section has the full
-   loop). Use `uv run` so the results come from the pinned environment in `uv.lock`.
+   Run MIRACL for ja and ko as well (the README's Reproduce section has the full loop; `--systems all`
+   skips systems whose `miracl_langs` excludes the language). Use `uv run` so the results come from the
+   pinned environment in `uv.lock`.
 
    Commit the updated `results/` files with the PR. Don't edit numbers in the README by hand.
 

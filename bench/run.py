@@ -32,6 +32,7 @@ import time
 from collections import defaultdict
 
 from . import data_law, metrics, queries as queries_mod
+from . import systems as systems_mod
 from .systems import take_errors
 
 TABLE = "docs"
@@ -210,9 +211,12 @@ def metadata(task, n_docs, extra):
     return md
 
 
-def pick_systems(arg, systems):
+def pick_systems(arg, systems, lang=None):
+    """'all' or comma-separated names. For MIRACL (lang given), 'all' leaves out systems whose miracl_langs
+    excludes the language (jieba outside zh, jieba_big everywhere); naming a system runs it regardless."""
     if arg == "all":
-        return list(systems)
+        return [n for n, s in systems.items()
+                if lang is None or getattr(s, "miracl_langs", None) is None or lang in s.miracl_langs]
     names = [n for n in arg.split(",") if n]
     bad = [n for n in names if n not in systems]
     if bad:
@@ -261,7 +265,9 @@ def task_law(args, systems):
     result, skipped = run_systems(names, texts, evaluate, "substring", systems)
     with tempfile.TemporaryDirectory(prefix="cjkbench_") as td:
         raw_bytes = raw_table_bytes(texts, td)
-    md = metadata("law_substring", len(texts), {"raw_table_bytes": raw_bytes,
+    jb = ({"jieba_big_dictionary": f"{systems_mod.JIEBA_REPO}@{systems_mod.JIEBA_COMMIT}:extra_dict/dict.txt.big "
+                                    f"sha256 {systems_mod.JIEBA_BIG_SHA256}"} if "jieba_big" in result else {})
+    md = metadata("law_substring", len(texts), {"raw_table_bytes": raw_bytes, **jb,
         "law_source": data_law.REPO, "law_commit": data_law.commit_hash(), "n_queries": len(qs),
         "queries_dropped_empty_ground_truth": dropped,
         "limit_docs": args.limit_docs, "limit_queries": args.limit_queries})
@@ -288,7 +294,7 @@ def task_miracl(args, systems):
             rows.append(row)
         return rows
 
-    names = pick_systems(args.systems, systems)
+    names = pick_systems(args.systems, systems, lang=args.lang)
     result, skipped = run_systems(names, texts, evaluate, "miracl", systems)
     with tempfile.TemporaryDirectory(prefix="cjkbench_") as td:
         raw_bytes = raw_table_bytes(texts, td)

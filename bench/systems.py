@@ -91,6 +91,8 @@ class System:
     name = ""
     description = ""
     tokenize = "unicode61"
+    # MIRACL languages `--systems all` runs this system on; None = every language.
+    miracl_langs: tuple[str, ...] | None = None
 
     def available(self) -> tuple[bool, str]:
         return True, ""
@@ -249,6 +251,7 @@ class Jieba(System):
         "query tokens combined with AND; unicode61."
     )
     tokenize = "unicode61"
+    miracl_langs: tuple[str, ...] | None = ("zh",)  # jieba segments Chinese only
 
     def __init__(self):
         self._jieba = None
@@ -276,6 +279,65 @@ class Jieba(System):
         if not tokens:
             return []
         return fts_match(conn, table, " AND ".join(phrase(t) for t in tokens), k)
+
+
+JIEBA_REPO = "https://github.com/fxsjy/jieba"
+JIEBA_COMMIT = "67fa2e36e72f69d9134b8a1037b83fbb070b9775"  # master on 2020-02-15, the v0.42.1 release
+JIEBA_BIG_SHA256 = "b16011275c42955ccd81fc1adecc93a59dbb7926af69d93fc95d4943d40f6aad"
+JIEBA_BIG = Path(__file__).resolve().parent.parent / "data" / "src" / "jieba" / "extra_dict" / "dict.txt.big"
+
+
+def fetch_jieba_big() -> Path:
+    """jieba's dictionary for Traditional Chinese (extra_dict/dict.txt.big), fetched with git at a pinned
+    commit and checked against its SHA-256. jieba's README: "a bigger dictionary that has better support for
+    traditional Chinese (繁體)"; download it and call jieba.set_dictionary(...)."""
+    import hashlib
+    import subprocess
+
+    if not JIEBA_BIG.exists():
+        repo = JIEBA_BIG.parent.parent
+        repo.parent.mkdir(parents=True, exist_ok=True)
+        if not (repo / ".git").exists():
+            subprocess.run(["git", "clone", "-q", "--filter=blob:none", "--no-checkout", JIEBA_REPO, str(repo)],
+                           check=True)
+        subprocess.run(["git", "-C", str(repo), "checkout", "-q", JIEBA_COMMIT, "--", "extra_dict/dict.txt.big"],
+                       check=True)
+    digest = hashlib.sha256(JIEBA_BIG.read_bytes()).hexdigest()
+    if digest != JIEBA_BIG_SHA256:
+        raise RuntimeError(f"{JIEBA_BIG}: sha256 {digest}, expected {JIEBA_BIG_SHA256}")
+    return JIEBA_BIG
+
+
+class JiebaBig(Jieba):
+    """jieba with extra_dict/dict.txt.big, the dictionary jieba documents for Traditional Chinese.
+
+    A separate jieba.Tokenizer(dictionary=...) is used rather than jieba.set_dictionary(...), which would
+    switch the default tokenizer that the `jieba` system uses in the same process; jieba's README documents
+    Tokenizer(dictionary=...) for using different dictionaries at the same time. Run on the Traditional
+    Chinese law task only: for Simplified text (MIRACL zh) the default dictionary is the documented choice.
+    """
+
+    name = "jieba_big"
+    description = (
+        "jieba with its Traditional Chinese dictionary (extra_dict/dict.txt.big, pinned commit and SHA-256); "
+        "otherwise the same as jieba. Law task only."
+    )
+    miracl_langs: tuple[str, ...] = ()
+
+    def available(self):
+        try:
+            fetch_jieba_big()
+        except Exception as e:  # noqa: BLE001
+            return False, f"jieba dict.txt.big unavailable: {e}"
+        return super().available()
+
+    def _j(self):
+        if self._jieba is None:
+            import jieba
+
+            jieba.setLogLevel(logging.WARNING)
+            self._jieba = jieba.Tokenizer(dictionary=str(fetch_jieba_big()))
+        return self._jieba
 
 
 class IcuSegmenter(System):
@@ -413,5 +475,5 @@ class Fts5CjkUnigram(Fts5Cjk):
 
 SYSTEMS: dict[str, System] = {
     s.name: s
-    for s in (Unicode61(), Trigram(), TrigramLike(), AppBigram(), AppBigramEdge(), AppBigramFirst(), Jieba(), IcuSegmenter(), BetterTrigram(), Fts5Cjk(), Fts5CjkUnigram())
+    for s in (Unicode61(), Trigram(), TrigramLike(), AppBigram(), AppBigramEdge(), AppBigramFirst(), Jieba(), JiebaBig(), IcuSegmenter(), BetterTrigram(), Fts5Cjk(), Fts5CjkUnigram())
 }

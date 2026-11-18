@@ -139,3 +139,20 @@ def test_app_bigram_first_adds_only_the_first_char():
     assert system.prep_doc("魚池鄉 abc 鄉").split() == ["魚", "魚池", "池鄉", "abc", "鄉"]
     assert _toks("app_bigram_first", "魚池鄉在哪？")[:2] == ["魚", "魚池"]
     assert "哪" not in _toks("app_bigram_first", "魚池鄉在哪？")
+
+
+def test_jieba_big_uses_the_pinned_traditional_dictionary():
+    """jieba_big loads jieba's documented Traditional Chinese dictionary (pinned commit, checked SHA-256) in
+    its own Tokenizer, so the default `jieba` system keeps the default dictionary in the same process."""
+    import hashlib
+
+    from bench.systems import JIEBA_BIG_SHA256, fetch_jieba_big
+
+    big, default = SYSTEMS["jieba_big"], SYSTEMS["jieba"]
+    ok, why = big.available()
+    if not ok:
+        pytest.skip(why)
+    assert hashlib.sha256(fetch_jieba_big().read_bytes()).hexdigest() == JIEBA_BIG_SHA256
+    assert list(big._j().cut("南投縣魚池鄉")) == ["南投縣", "魚池", "鄉"]
+    assert list(default._j().cut("南投縣魚池鄉")) == ["南投", "縣魚", "池鄉"]
+    assert big.miracl_langs == () and default.miracl_langs == ("zh",)

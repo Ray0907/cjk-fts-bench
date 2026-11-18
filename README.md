@@ -223,15 +223,14 @@ uv run python -m bench.report results/law_substring.json > results/law_substring
 ```
 
 MIRACL data comes from Hugging Face (you may need to accept the dataset terms and log in first).
-jieba segments Chinese only, so it is left out for ja and ko:
+For MIRACL, `--systems all` leaves out jieba for ja and ko (it segments Chinese only) and `jieba_big`
+everywhere (its dictionary is for Traditional Chinese; MIRACL zh is Simplified):
 
 ```sh
-NOJIEBA=$(uv run python -c "from bench.systems import SYSTEMS; print(','.join(n for n in SYSTEMS if n != 'jieba'))")
 for lang in zh ja ko; do
   uv run --group data hf download miracl/miracl --repo-type dataset --include "miracl-v1.0-$lang/*" --local-dir data/miracl
   uv run --group data hf download miracl/miracl-corpus --repo-type dataset --include "miracl-corpus-v1.0-$lang/*" --local-dir data/miracl
-  systems=all; [ "$lang" != zh ] && systems=$NOJIEBA
-  uv run python -m bench.run miracl --data-dir data/miracl --lang $lang --max-docs 100000 --systems $systems --out results/miracl_$lang.json
+  uv run python -m bench.run miracl --data-dir data/miracl --lang $lang --max-docs 100000 --systems all --out results/miracl_$lang.json
   uv run python -m bench.report results/miracl_$lang.json > results/miracl_$lang.md
 done
 uv run python -m bench.leaderboard --update-readme
