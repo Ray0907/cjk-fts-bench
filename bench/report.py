@@ -4,7 +4,14 @@ import sys
 
 
 def _pct(x):
-    return f"{100 * x:.1f}%"
+    return "n/a" if x is None else f"{100 * x:.1f}%"
+
+
+def _prec(b):
+    """Precision cell: mean over the queries that returned something, with their count when known."""
+    if "precision_n" not in b:
+        return _pct(b["precision"])
+    return f"{_pct(b['precision'])} (n={b['precision_n']})"
 
 
 def render(res):
@@ -33,7 +40,7 @@ def render(res):
                 cells = [n] + [f"{_pct(s['buckets'][b]['recall'])} / {_pct(s['buckets'][b]['zero_result_rate'])}"
                                for b in buckets]
                 a = s["buckets"]["all"]
-                cells += [_pct(a["recall"]), _pct(a["precision"])]
+                cells += [_pct(a["recall"]), _prec(a)]
                 out.append("| " + " | ".join(cells) + " |")
         else:
             hdr = ["system", "nDCG@10", "Recall@100"]
@@ -42,7 +49,9 @@ def render(res):
                 a = s["buckets"]["all"]
                 out.append(f"| {n} | {a['ndcg10']:.4f} | {a['recall100']:.4f} |")
         out += ["", "Cells are macro means per bucket; 'zero' = share of queries with matches in ground truth "
-                "but none returned." if task == "law_substring" else "", "", "## Cost", "",
+                "but none returned. Precision is undefined for a query that returns nothing, so it is the mean over "
+                "the n queries that returned at least one article." if task == "law_substring" else "", "",
+                "## Cost", "",
                 "| system | build s | index MB | p50 ms | p95 ms | search errors |", "|---|---|---|---|---|---|"]
         for n, s in systems.items():
             a = s["buckets"]["all"]
@@ -56,8 +65,9 @@ def render(res):
             out.append("")
             for r in worst:
                 if task == "law_substring":
+                    p = "n/a" if r["precision"] is None else f"{r['precision']:.3f}"
                     out.append(f"- `{r['query']}` ({r['bucket']}): |G|={r['g']} |S|={r['s']} "
-                               f"recall={r['recall']:.3f} precision={r['precision']:.3f}")
+                               f"recall={r['recall']:.3f} precision={p}")
                 else:
                     out.append(f"- `{r['query']}`: relevant={r['g']} returned={r['s']} nDCG@10={r['ndcg10']:.3f}")
             out.append("")

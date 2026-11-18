@@ -3,13 +3,17 @@ import math
 
 
 def substring_metrics(S, G):
-    """S: returned rowids (iterable), G: ground-truth rowids. Returns dict."""
+    """S: returned rowids (iterable), G: ground-truth rowids. Returns dict.
+
+    precision is None (undefined) when nothing is returned: an empty answer is neither precise nor
+    imprecise, and counting it as 1.0 made a setup that returns nothing look perfectly precise. Means
+    over queries skip None; zero_result records those queries instead."""
     S, G = set(S), set(G)
     inter = len(S & G)
     return {
         "g": len(G), "s": len(S),
         "recall": (inter / len(G)) if G else 1.0,
-        "precision": (inter / len(S)) if S else 1.0,
+        "precision": (inter / len(S)) if S else None,
         "zero_result": bool(G) and not S,
     }
 

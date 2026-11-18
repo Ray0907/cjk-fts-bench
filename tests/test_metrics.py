@@ -9,13 +9,22 @@ def test_substring_basic():
 
 
 def test_substring_empty_S():
+    """Nothing returned: precision is undefined (None), not a perfect 1.0; zero_result flags the miss."""
     m = substring_metrics([], [1])
-    assert m["recall"] == 0 and m["precision"] == 1.0 and m["zero_result"] is True
+    assert m["recall"] == 0 and m["precision"] is None and m["zero_result"] is True
 
 
 def test_substring_empty_both():
     m = substring_metrics([], [])
-    assert m["zero_result"] is False and m["precision"] == 1.0
+    assert m["zero_result"] is False and m["precision"] is None
+
+
+def test_aggregate_precision_skips_queries_that_returned_nothing():
+    from bench.run import aggregate
+
+    rows = [dict(bucket="b", latency_ms=1.0, **substring_metrics(S, G)) for S, G in (([1], [1]), ([1, 2], [1]), ([], [1]))]
+    a = aggregate(rows, "substring")["all"]
+    assert a["precision"] == 0.75 and a["precision_n"] == 2 and abs(a["zero_result_rate"] - 1 / 3) < 1e-12
 
 
 def test_ndcg_hand():

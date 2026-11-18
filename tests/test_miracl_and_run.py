@@ -68,7 +68,9 @@ def test_law_smoke(tmp_path):
     r = json.loads(out.read_text())
     rows = r["systems"]["trigram"]["queries"]
     assert len(rows) == 10
-    assert all(x["precision"] == 1.0 for x in rows)  # trigram substring is exact for >=3 chars
+    # trigram substring is exact when it returns anything; precision is undefined when it returns nothing
+    assert all(x["precision"] == 1.0 for x in rows if x["s"])
+    assert all(x["precision"] is None for x in rows if not x["s"])
     assert "Failure examples" in report.render(r)
 
 

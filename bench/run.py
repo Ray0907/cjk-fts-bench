@@ -86,7 +86,9 @@ def aggregate(rows, kind):
              "errors": sum(1 for r in rs if r.get("error"))}
         mean = lambda key: sum(r[key] for r in rs) / len(rs)
         if kind == "substring":
-            d.update(recall=mean("recall"), precision=mean("precision"),
+            prec = [r["precision"] for r in rs if r["precision"] is not None]
+            d.update(recall=mean("recall"), precision=sum(prec) / len(prec) if prec else None,
+                     precision_n=len(prec),  # queries that returned something; precision is their mean
                      zero_result_rate=sum(1 for r in rs if r["zero_result"]) / len(rs))
         else:
             d.update(ndcg10=mean("ndcg10"), recall100=mean("recall100"))
