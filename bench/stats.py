@@ -5,8 +5,10 @@
 Same paired test as the leaderboard (bench.compare.paired: 10,000 bootstrap resamples and 10,000 sign flips,
 seed 42), so the same pair gives the same numbers in both. Adds what the leaderboard does not show:
 
-- the top system per language and split, and every system's distance from it, with Holm-corrected p-values
-  (over all comparisons with the top in that language and split);
+- the top system per language and split, and every system's distance from it, with Holm-corrected p-values.
+  The family is every other system in that language and split, each counted once: a system whose per-query
+  scores are identical to another's (trigram_like = trigram everywhere; fts5_cjk_qedge = app_bigram_edge on
+  Korean train) is listed but not counted. A second Holm column leaves out the ranking-only fts5-cjk variants;
 - equivalence: "within ±0.01" means the 90% bootstrap CI of the difference lies inside [-0.01, +0.01] (two
   one-sided tests at the 5% level). A difference that is not significant is not called a tie unless it passes this;
 - the pairs the README discusses, with 95% and 90% CIs and per-query wins/ties/losses;
@@ -16,7 +18,18 @@ from __future__ import annotations
 
 import sys
 
-from .leaderboard import LANGS, SAME_RANKING_AS, SPLITS, _load, fmt_p, load_runs, sig
+from .leaderboard import LANGS, SPLITS, _load, fmt_p, load_runs, sig
+from .systems import SYSTEMS, System
+
+
+def ranking_only(n):
+    return getattr(SYSTEMS.get(n), "ranking_only", False)
+
+
+def transforms_text(n):
+    """App-level systems store their transformed text; the raw text must be kept elsewhere to show results."""
+    s = SYSTEMS.get(n)
+    return s is not None and type(s).prep_doc is not System.prep_doc
 
 MARGIN = 0.01
 PAIRS = [
@@ -85,22 +98,35 @@ def main():
             if not run:
                 continue
             key = (lang, split)
-            names = [n for n in run["systems"] if n not in SAME_RANKING_AS]
-            mean = {n: run["systems"][n]["buckets"]["all"]["ndcg10"] for n in names}
-            top = max(names, key=lambda n: mean[n])
-            others = [n for n in names if n != top]
+            mean = {n: v["buckets"]["all"]["ndcg10"] for n, v in run["systems"].items()}
+            vec = {n: tuple(q["ndcg10"] for q in sorted(v["queries"], key=lambda q: q["qid"]))
+                   for n, v in run["systems"].items()}
+            kept, dup = [], {}
+            for n in sorted(run["systems"], key=lambda n: (ranking_only(n), -mean[n], n)):
+                same = next((k for k in kept if vec[k] == vec[n]), None)
+                if same:
+                    dup[n] = same
+                else:
+                    kept.append(n)
+            top = max(kept, key=lambda n: mean[n])
+            others = [n for n in kept if n != top]
             rs = [csig(key, run, top, n) for n in others]
             adj = holm([r["p_value"] for r in rs])
+            core = [i for i, n in enumerate(others) if not ranking_only(n)]
+            adj2 = dict(zip(core, holm([rs[i]["p_value"] for i in core])))
             out += [f"### {lang} {split} (n={run['metadata']['n_queries']}): top `{top}` {mean[top]:.4f}", "",
-                    "| system | nDCG@10 | top − system | 95% CI | 90% CI | p | Holm p | within ±0.01 |",
-                    "|---|---|---|---|---|---|---|---|"]
-            rows = sorted(zip(others, rs, adj), key=lambda x: -mean[x[0]])
-            for n, r, a in rows:
+                    "| system | nDCG@10 | top − system | 95% CI | 90% CI | p | Holm p | Holm p without ranking-only "
+                    "variants | within ±0.01 |", "|---|---|---|---|---|---|---|---|---|"]
+            rows = sorted(zip(range(len(others)), others, rs, adj), key=lambda x: -mean[x[1]])
+            for i, n, r, a in rows:
+                a2 = f"{adj2[i]:.4f}" if i in adj2 else "n/a"
                 out.append(f"| `{n}` | {mean[n]:.4f} | {r['mean_diff']:+.4f} | {ci(r)} | {ci(r, 'ci90')} | "
-                           f"{fmt_p(r['p_value'])} | {a:.4f} | {'yes' if within(r) else 'no'} |")
-            ns = [n for n, r, a in rows if a >= 0.05]
-            eq = [n for n, r, a in rows if within(r)]
-            out += ["", f"Not significantly below the top after Holm correction: "
+                           f"{fmt_p(r['p_value'])} | {a:.4f} | {a2} | {'yes' if within(r) else 'no'} |")
+            ns = [n for i, n, r, a in rows if a >= 0.05]
+            eq = [n for i, n, r, a in rows if within(r)]
+            dups = "; ".join(f"`{n}` is identical to `{d}` on every query" for n, d in sorted(dup.items()))
+            out += ["", f"Family: {len(others)} comparisons with the top. Counted once: {dups or 'none'}. "
+                    f"Not significantly below the top after Holm correction: "
                     f"{', '.join(f'`{n}`' for n in ns) or 'none'}. Within ±0.01 of the top: "
                     f"{', '.join(f'`{n}`' for n in eq) or 'none'}.", ""]
 
@@ -121,7 +147,9 @@ def main():
     out += ["", "## Index size", "",
             "MB = 10^6 bytes. index only = FTS5 `content=''`; index + raw = index only plus one plain table of the "
             "original text; default = the FTS5 table with its stored copy (the measure used before 2026-11).", "",
-            "| A vs B | corpus | index only | index + raw | default |", "|---|---|---|---|---|"]
+            "**as deployed** = the FTS5 table as the system uses it, plus one raw copy for systems that store "
+            "transformed text (the original must then be kept elsewhere to show results).", "",
+            "| A vs B | corpus | index only | index + raw | default | as deployed |", "|---|---|---|---|---|---|"]
     srcs = [("law", law)] + [(f"{lang} train", runs.get((lang, "train"))) for lang in LANGS]
     srcs = [(label, s) for label, s in srcs if s and s["metadata"].get("raw_table_bytes")]
     for a, b in SIZE_PAIRS:
@@ -131,10 +159,11 @@ def main():
                 continue
             raw = s["metadata"]["raw_table_bytes"]
             pct = lambda x, y: f"{100 * (x / y - 1):+.1f}%"  # noqa: E731
+            dep = lambda n, v: v["index_bytes"] + (raw if transforms_text(n) else 0)  # noqa: E731
             out.append(f"| `{a}` vs `{b}` | {label} | "
                        f"{pct(sa['index_bytes_contentless'], sb['index_bytes_contentless'])} | "
                        f"{pct(sa['index_bytes_contentless'] + raw, sb['index_bytes_contentless'] + raw)} | "
-                       f"{pct(sa['index_bytes'], sb['index_bytes'])} |")
+                       f"{pct(sa['index_bytes'], sb['index_bytes'])} | {pct(dep(a, sa), dep(b, sb))} |")
     out += ["", "Smallest index per measure (two smallest, MB):", ""]
     for label, s in srcs:
         raw = s["metadata"]["raw_table_bytes"]
