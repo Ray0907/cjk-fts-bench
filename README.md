@@ -22,16 +22,19 @@ Write-up of the results: [SQLite FTS5 for Chinese, Japanese, Korean: 11 tokenize
 
 > **Disclosure.** The maintainer of this benchmark also wrote one of the systems,
 > [fts5-cjk](https://github.com/Ray0907/fts5-cjk). It does not win. Problems found during
-> development and by an independent audit, two of which favoured fts5-cjk, are documented in
-> [Corrections](#corrections). Reviews from other tokenizer authors are welcome.
+> development and in a 2026-11 audit, two of which favoured fts5-cjk, are documented in
+> [Corrections](#corrections). That audit was AI-assisted (Claude, run at my request); no third party
+> has reviewed the work yet. Reviews from other tokenizer authors are welcome.
 
 ## Which setup should I use?
 
 The ranking advice rests on two sets of queries: MIRACL **dev**, which the benchmark was developed on
-(`app_bigram_first` was chosen after looking at it), and MIRACL **train**, held out and added after an
-independent audit (2026-11). Where the two disagree, the held-out result decides. "Within ±0.01" below
-means the 90% confidence interval of the difference lies inside ±0.01 nDCG@10; a difference that is
-merely not significant is not called a tie.
+(`app_bigram_first` was chosen after looking at it), and MIRACL **train**, held out and added in an
+AI-assisted audit (2026-11, see Corrections). Where the two disagree, the held-out result decides.
+"Within ±0.01" below means the 90% confidence interval of the difference lies inside ±0.01 nDCG@10;
+a difference that is merely not significant is not called a tie. Latencies quoted below are absolute
+p50s from the dev run on the author's macOS machine unless marked as a ratio; ratios for systems that
+only have train results come from one run in a Linux VM.
 
 - **Don't use the defaults for CJK.** `unicode61` treats a whole run of Han characters as one
   token (nDCG@10 0.008 on Chinese dev, 0.015 on train). The built-in `trigram` tokenizer returns
@@ -39,15 +42,16 @@ merely not significant is not called a tie.
   dictionary headwords that occur in at least 3 law articles).
 - **No setup ranks best in all three languages.** On the held-out queries the top system is
   `better_trigram` in Chinese (0.401), `icu_segmenter` in Japanese (0.562) and `app_bigram_first`
-  in Korean (0.511). The Chinese lead is not clear-cut: `icu_segmenter`, `app_bigram_edge`,
-  `fts5_cjk_qedge` and `app_bigram_first` are not significantly below `better_trigram` after Holm
-  correction. In Japanese,
-  ICU is significantly above every other system.
+  in Korean (0.511). The Chinese lead is not clear-cut: `icu_segmenter`, `app_bigram_edge` and
+  `fts5_cjk_qedge` are not significantly below `better_trigram` after Holm correction, and
+  `app_bigram_first` is borderline (below). In Japanese, ICU is significantly above every other system.
 - **One setup for all three languages: bigrams plus each CJK run's first character, added to
   documents and to queries (`app_bigram_first`).** It was chosen on dev, and its gain over plain
   bigrams holds on the held-out queries: +0.034 (zh), +0.026 (ja), +0.022 (ko), each 95% interval
-  above zero. It is the top system only in Korean: in Chinese it is 0.019 below `better_trigram`
-  (p=0.019, 0.075 after Holm correction) and in Japanese 0.015 below ICU (significant). Cost over
+  above zero. It is the top system only in Korean. In Chinese it is 0.019 below `better_trigram`
+  (95% CI of the leader's advantage +0.004 to +0.034, p≈0.02 unadjusted); after Holm correction
+  that is borderline, adjusted p 0.056 to 0.075 depending on whether the two fts5-cjk ranking variants
+  are counted in the family. In Japanese it is 0.015 below ICU (significant after correction). Cost over
   plain bigrams: inverted index +7% (zh), +7% (ja), +33% (ko) on the train samples, or +4%, +3%,
   +13% counting one raw copy of the text; ranking queries p50 zh 3.3 vs 2.0 ms, ja 32 vs 26 ms,
   ko 38 vs 8 ms (dev, one run). Like plain bigrams, it misses a single character that occurs only
@@ -67,18 +71,26 @@ merely not significant is not called a tie.
   zh, same as `trigram`). fts5-cjk and better-trigram also find everything, without the scan.
 - **No application code:** a C tokenizer. fts5-cjk's ranking is within ±0.01 of app-level bigrams
   in every language on the held-out queries, slightly below them (−0.004 zh, −0.001 ja, −0.005 ko);
-  on dev it is within ±0.01 in zh and ja, and the Korean interval is too wide to tell. Its inverted
-  index is larger than app-level bigrams' (+18% zh, +15% ja, +60% ko, +20% law), because it also
-  indexes each run's first and last character; with one raw copy of the text the difference is
-  +9%, +7%, +24%, +9%. (The benchmark used to report it as smaller: its old size measure counted
-  the bigram-rewritten text that app-level tables store.) Unlike app-level bigrams, `highlight()` and
-  `snippet()` return the original text. Ranking was measured with the benchmark's common query rule,
-  which leaves out the run-edge characters fts5-cjk indexes. A ranking query that also sends each
-  run's first character (`fts5_cjk_qfirst`, what the `cjk_rank_query()` helper proposed for fts5-cjk
-  produces) adds +0.033 (zh), +0.021 (ja), +0.019 (ko) on held-out queries with the same index. That
-  leaves it 0.005 to 0.008 below `app_bigram_first`: significant, but inside the ±0.015 bound set
-  before the test. It costs query time (p50 ×1.7 zh, ×1.2 ja, ×5.0 ko against fts5_cjk). better-trigram ranks at the top in Chinese but is slow (p50 50 ms on
-  zh) and falls behind in Japanese and Korean.
+  on dev it is within ±0.01 in zh and ja, and the Korean interval is too wide to tell. Its size
+  depends on how each is deployed (train samples and the law corpus; see Method):
+  - *As usually deployed*, an app-level FTS5 table stores its bigram-rewritten text, so the original
+    must be kept elsewhere to show results. There fts5-cjk's table is 27% (zh), 35% (ja), 12% (ko)
+    and 33% (law) smaller than the app-level table alone, and 38% to 50% smaller than the app-level
+    table plus a raw copy.
+  - *Inverted index only* (contentless or external-content tables), or index plus one raw copy for
+    both: fts5-cjk is larger, +18%, +15%, +60%, +20% for the index and +9%, +7%, +24%, +9% with the
+    raw copy, because it also indexes each run's first and last character.
+
+  Unlike app-level bigrams, `highlight()` and `snippet()` return the original text. Ranking was
+  measured with the benchmark's common query rule, which leaves out the run-edge characters fts5-cjk
+  indexes. A ranking query that also sends each run's first character (`fts5_cjk_qfirst`, measured
+  with the benchmark's Python equivalent of fts5-cjk's `cjk_rank_query()`, which returns the same top
+  100 on all but 2 of 5,657 train queries: [validation](audit/rank_query_validation/summary.md)) adds
+  +0.033 (zh), +0.021 (ja), +0.019 (ko) on held-out queries with the same index. Against
+  `app_bigram_first` it is within ±0.01 in Chinese and Japanese (0.005 and 0.007 lower) but not in
+  Korean, where it is 0.008 lower (90% CI −0.012 to −0.004). It costs query time (p50 ratio against
+  fts5_cjk ×1.7 zh, ×1.2 ja, ×5.0 ko, one VM run). better-trigram ranks at the top in Chinese but is
+  slow (p50 50 ms on zh) and falls behind in Japanese and Korean.
 
 ## Leaderboard
 
@@ -151,7 +163,7 @@ Paired difference in nDCG@10 against `app_bigram`, MIRACL **train** (95% bootstr
 
 Bold = the 95% CI excludes zero (no multiple-comparison correction; see Limits). `trigram_like` ranks exactly like `trigram` (same ranking path) and is not repeated.
 
-Index size in MB (10^6 bytes) after VACUUM: **index only** (FTS5 `content=''`) / **index + one raw copy** of the original text / **default** (the FTS5 table with its stored copy of what the system indexes: transformed text for app-level systems, original text otherwise; the measure used before 2026-11). Only the first two compare like with like.
+Index size in MB (10^6 bytes) after VACUUM: **index only** (FTS5 `content=''`) / **index + one raw copy** of the original text / **default** (the FTS5 table with its stored copy of what the system indexes: transformed text for app-level systems, original text otherwise; the measure used before 2026-11). Each matches a deployment: default is the usual FTS5 table (an app-level system then also keeps the original text elsewhere to show results); index only is a contentless or external-content table; index + raw copy adds the original once, for any system.
 
 | system | law | zh train | ja train | ko train |
 |---|---|---|---|---|
@@ -182,14 +194,16 @@ Run environments: law: SQLite 3.53.1, Python 3.13.18, Node v22.23.5 (ICU 78.3), 
    after looking at them; no decision used the train queries. Adding the last character as well
    (`app_bigram_edge`) adds little: on train it is within ±0.01 of `app_bigram_first` in Japanese and
    Korean and 0.007 ahead in Chinese (p=0.025 uncorrected), while costing more index and query time,
-   most of all in Korean (p50 96 ms against 38 ms for `app_bigram_first` and 8 ms for plain bigrams).
+   most of all in Korean (dev p50 96 ms against 38 ms for `app_bigram_first` and 8 ms for plain bigrams).
    The last character on its own was not tested. The gain needs the query-side terms: fts5-cjk indexes
    the first and last characters, but under the common query rule its queries do not send them, and it
-   ranks within ±0.01 of plain bigrams. Sending them from fts5-cjk's unchanged index recovers the gain,
-   in a test whose decision rule was fixed before it ran on the held-out queries: with the first character
-   (`fts5_cjk_qfirst`) it comes within 0.005 to 0.008 of `app_bigram_first`, and with both
-   (`fts5_cjk_qedge`) it reproduces `app_bigram_edge` (identical on all 868 Korean queries, within 0.006
-   elsewhere).
+   ranks within ±0.01 of plain bigrams. Sending them from fts5-cjk's unchanged index recovers most of the
+   gain on the held-out queries. With the first character (`fts5_cjk_qfirst`) it is within ±0.01 of
+   `app_bigram_first` in Chinese and Japanese and 0.008 below it in Korean. The likely reason for the gap
+   is that fts5-cjk's index also holds each run's last character under the same term; that was not
+   tested. With both characters (`fts5_cjk_qedge`) it is identical to `app_bigram_edge` on all 868 Korean
+   queries, indistinguishable in Chinese (−0.0001) and 0.006 lower in Japanese (p≤0.0001; the difference
+   is on the document side and was not explained).
 2. **What helps Chinese can hurt Japanese and Korean.** better-trigram makes each Han and kana
    character its own token and splits other text, Hangul included, into trigrams (its README and the
    token test in `tests/test_systems.py`). Against plain bigrams it gains in Chinese (+0.041 dev,
@@ -226,7 +240,7 @@ Run environments: law: SQLite 3.53.1, Python 3.13.18, Node v22.23.5 (ICU 78.3), 
 | `better_trigram` | [streetwriters/sqlite-better-trigram](https://github.com/streetwriters/sqlite-better-trigram) C extension: space-bounded trigrams, with each Han or kana character as its own token. Its CJK ranges do not include Hangul, so Korean gets trigrams. |
 | `fts5_cjk` | [Ray0907/fts5-cjk](https://github.com/Ray0907/fts5-cjk) C extension: bigrams inside the tokenizer. Substring queries use its documented `cjk_query()` helper. |
 | `fts5_cjk_unigram` | fts5-cjk with its documented `unigram 1` option. |
-| `fts5_cjk_qfirst` | `fts5_cjk`'s table and substring search; its ranking query also sends each CJK run's first character, which fts5-cjk indexes on its own. What the proposed `cjk_rank_query(text, 'first')` produces. Held-out (train) results only. |
+| `fts5_cjk_qfirst` | `fts5_cjk`'s table and substring search; its ranking query also sends each CJK run's first character, which fts5-cjk indexes on its own. A Python equivalent of fts5-cjk's `cjk_rank_query(text, 'first')` (added to fts5-cjk after the pinned commit; [identity check](audit/rank_query_validation/summary.md)). Held-out (train) results only. |
 | `fts5_cjk_qedge` | Same, sending each run's first and last character (`cjk_rank_query(text, 'edge')`). Held-out results only. |
 
 Each system is set up the way its own documentation describes. Not run yet:
@@ -259,11 +273,30 @@ passage plus random distractors (seed 42). Metrics: nDCG@10 and Recall@100.
 
 The benchmark was developed on the dev queries, and `app_bigram_first` was added after looking at
 them. As a held-out check, every system was also run on the MIRACL **train** queries (zh 1,312,
-ja 3,477, ko 868; `--split train`), which no decision used. The train sample is drawn the same way
-(every judged train passage plus seeded distractors to 100,000), so its passages differ from dev's and
-absolute scores are not comparable across the splits; compare systems within a split. The train runs
-were driven in resumable steps by [`audit/chunk_run.py`](audit/chunk_run.py), which calls the same
-harness functions; a Korean re-run with the current code matched the earlier run on every query.
+ja 3,477, ko 868; `--split train`), which no choice between systems used. The train sample is drawn
+the same way (every judged train passage plus seeded distractors to 100,000), so its passages differ
+from dev's and absolute scores are not comparable across the splits; compare systems within a split.
+
+Provenance of the train results, recorded in each file's `metadata.provenance`: zh and ja were produced
+on 2026-11-18 by the audit's chunked driver, [`audit/original/chunk_run.py`](audit/original/chunk_run.py),
+on bench commit ee3f11b, with contentless sizes merged from `audit/sizes.jsonl` by
+`audit/merge_train_sizes.py`. Their `fts5_cjk_qfirst`/`_qedge` rows come from the variant experiment
+([`audit/qfirst/`](audit/qfirst/)), whose own `fts5_cjk` rows equal the committed ones on every query.
+Korean was re-run with the final code ([`audit/chunk_run.py`](audit/chunk_run.py)) and matched the
+earlier runs on every query for all 12 systems. The driver runs `bench.run`'s steps in resumable
+chunks because the VM ended every call after 180 seconds:
+
+```sh
+# final code (ko); repeat query until every system reports n/n
+python audit/chunk_run.py prep  --data-dir data/miracl --lang ko --split train --work W
+python audit/chunk_run.py build --lang ko --system SYSTEM --work W      # for each system
+python audit/chunk_run.py query --lang ko --system SYSTEM --work W --budget 140
+python audit/chunk_run.py merge --lang ko --work W --out results/miracl_ko_train.json
+# zh, ja (audit driver on a checkout of ee3f11b)
+CJK_REPO=<ee3f11b checkout> CJK_WORK=W CJK_DATA=data/miracl python audit/original/chunk_run.py prep --lang zh --split train --max-docs 100000
+#   ... build / query / merge as above
+python audit/merge_train_sizes.py results/miracl_zh_train.json zh_train
+```
 
 MIRACL queries are full questions (中国俄罗斯族有多少人？), so ranking uses **one rule for every
 system**: strip punctuation; apply the same transformation the system applies to documents;
@@ -276,15 +309,22 @@ sentences; they differ, and the tests record it, where fts5-cjk folds what `app_
 
 Comparisons use a paired bootstrap 95% confidence interval and a paired randomization test over the
 same queries (`python -m bench.compare`). "Within ±0.01" means the 90% bootstrap interval of the
-difference lies inside ±0.01 (equivalence by two one-sided tests at 5%); distances to the top system
-use Holm's correction over all comparisons with it. Ranking results are deterministic: a full re-run
-gave identical per-query scores (dev), and so did the Korean train re-run.
+difference lies inside ±0.01 (equivalence by two one-sided tests at 5%); the same bound applies to
+every system, including the author's. Distances to the top system (`results/stats.md`) are corrected
+with Holm's method over one family per language and split: the comparisons of the top system with
+every other system, each counted once. A system whose per-query scores are identical to another's is
+listed but not counted (`trigram_like` = `trigram` everywhere; `fts5_cjk_qedge` = `app_bigram_edge`
+on Korean train). Holm is also reported without the two ranking-only fts5-cjk variants. The leaderboard's
+paired tables are uncorrected. Ranking results are deterministic: a full re-run gave identical
+per-query scores (dev), and so did the Korean train re-run.
 
-Index size is measured three ways: the inverted index alone (FTS5 `content=''`), that plus one plain
-table holding the original text, and the FTS5 table with its own stored copy, which is what earlier
-versions reported. The last one is not comparable across kinds of system: an app-level table stores
-its transformed text (bigram rewriting makes it 1.6 to 2.0 times the original bytes), a
-tokenizer-level table the original.
+Index size is measured three ways, each matching a way to deploy: the FTS5 table with its own stored
+copy (what earlier versions reported, and what the usual setup ships), the inverted index alone (FTS5
+`content=''`, for contentless or external-content tables), and that plus one plain table holding the
+original text. An app-level table stores its transformed text (bigram rewriting makes it 1.6 to 2.0
+times the original bytes), so to show results it also needs the original somewhere; a tokenizer-level
+table stores the original. `results/stats.md` also gives the usual setup with that raw copy added
+("as deployed").
 
 ### Limits
 
@@ -323,15 +363,16 @@ Problems found while building the benchmark, kept here so the results can be jud
 3. **Substring queries favoured jieba.** Query words were first sampled from jieba's own
    segmentation, so jieba always saw its own tokens, and the set included non-words such as 劃致.
    Adding the ICU segmenter exposed it. Words now come from the Ministry of Education dictionary.
-4. **2026-11-18: claims corrected after an independent audit and a held-out re-run.**
-   - *Index size.* "fts5-cjk has a smaller index than app-level bigrams" came from what each table
-     stores, not what it indexes: app-level tables stored their bigram-rewritten text. fts5-cjk's
-     inverted index is larger (+15% to +60%). Sizes are now measured three ways.
+4. **2026-11-18: claims corrected after an AI-assisted audit and a held-out re-run.**
+   - *Index size.* "fts5-cjk has a smaller index than app-level bigrams" held only for one deployment:
+     the usual FTS5 table, where app-level tables store their bigram-rewritten text (there fts5-cjk's
+     table is 12% to 35% smaller). Its inverted index alone is larger (+15% to +60%). Sizes are now
+     measured three ways and both cases are stated.
    - *Korean explanation.* Finding 2 explained better-trigram's Korean loss by single-character tokens.
      better-trigram does not treat Hangul as CJK; it makes trigrams of it. The finding now says so.
    - *jieba's dictionary.* jieba ran on Traditional Chinese with its default dictionary although its
      README offers `dict.txt.big` for Traditional text. With it (`jieba_big`), law recall is 71.6%,
-     not 61.3%, and slightly above ICU's 71.1%.
+     not 61.3%, comparable to ICU's 71.1%.
    - *"Tied-best".* `app_bigram_first` was called best or tied-best in all three languages, and
      several systems "the same", on the basis of non-significant differences on the dev queries it
      was chosen on. On held-out queries it is the top system only in Korean. "Tied" is replaced by an
@@ -340,17 +381,21 @@ Problems found while building the benchmark, kept here so the results can be jud
      gain holds; "jieba does no better than bigrams on Simplified Chinese" does not (+0.027).
    - *fts5-cjk's ranking query.* The common rule leaves fts5-cjk's run-edge characters out of its
      queries, so the benchmark measured only half of what its index offers. Two ranking variants that
-     send them, `fts5_cjk_qfirst` and `fts5_cjk_qedge`, were added under a decision rule fixed before
-     the held-out run; they correspond to a `cjk_rank_query()` helper proposed for fts5-cjk.
+     send them, `fts5_cjk_qfirst` and `fts5_cjk_qedge`, were added and run on the held-out queries;
+     they are Python equivalents of fts5-cjk's `cjk_rank_query()` (top-100 identical on 5,655 of
+     5,657 queries in 'first' mode and all 5,657 in 'edge' mode). The decision rule written down before
+     the run allowed ±0.015 against `app_bigram_first` and was not publicly timestamped. Under this
+     README's ±0.01 standard, `fts5_cjk_qfirst` meets it in Chinese and Japanese, not in Korean.
    - *Smaller fixes.* Law precision counted a query that returned nothing as 100% precise; it is now
      undefined for such a query. SQLite errors are recorded instead of being silently turned into
      empty results (none occurred). The p-value floor is written p≤0.0001. `trigram_like` is no longer
      counted twice in the ranking statistics. The jieba, Node.js and ICU versions are recorded. The
      claim that a test checks identical tokens is limited to what the test covers.
 
-   These came from an independent audit, which reproduced the law task and recomputed the published
-   statistics from the committed results, and from a re-run on held-out queries. Dev results could not be re-run (the dev data was not available
-   to the audit), so changes that would alter them, such as aligning `app_bigram`'s CJK character
+   These came from an audit that Claude, an AI assistant, ran at my request: it reproduced the law task,
+   recomputed the published statistics from the committed results and re-ran every system on the
+   held-out queries. No third party has reviewed it yet. Dev results could not be re-run (the dev data
+   was not available to the audit), so changes that would alter them, such as aligning `app_bigram`'s CJK character
    class with fts5-cjk's, are listed in [`docs/follow-ups.md`](docs/follow-ups.md) rather than made.
 
 ## Reproduce
@@ -396,10 +441,19 @@ To add a tokenizer, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Data and licences
 
-Code: MIT ([LICENSE](LICENSE)). Data is downloaded at run time, not redistributed:
+Code: MIT ([LICENSE](LICENSE)). Corpora and dictionaries are downloaded at run time and not
+redistributed. The result files in `results/` and `audit/` do contain the query strings of each task
+(MIRACL questions with their query and passage ids, dictionary headwords, short spans of law text) but
+no passage text:
 
 - Taiwan laws: Ministry of Justice open data, Open Government Data License, version 1.0
 - Dictionary headwords for query selection: 重編國語辭典修訂本, © Ministry of Education, R.O.C.,
-  CC BY-ND 3.0 TW, via [g0v/moedict-data](https://github.com/g0v/moedict-data)
-- MIRACL: Apache 2.0 ([dataset card](https://huggingface.co/datasets/miracl/miracl))
+  CC BY-ND 3.0 TW, via [g0v/moedict-data](https://github.com/g0v/moedict-data); headwords appear
+  unmodified as law queries
+- MIRACL (Zhang et al., "MIRACL: A Multilingual Retrieval Dataset Covering 18 Diverse Languages"):
+  Apache 2.0 ([dataset card](https://huggingface.co/datasets/miracl/miracl),
+  [repository](https://github.com/project-miracl/miracl)); the questions in the result files are
+  redistributed under that licence
+- jieba's `extra_dict/dict.txt.big` (used by `jieba_big`, fetched at run time from
+  [fxsjy/jieba](https://github.com/fxsjy/jieba) at commit 67fa2e3): MIT, © 2013 Sun Junyi
 - The C tokenizers keep their own licences.

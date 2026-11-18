@@ -169,7 +169,9 @@ def build() -> str:
         out += ["", "Index size in MB (10^6 bytes) after VACUUM: **index only** (FTS5 `content=''`) / **index + one "
                 "raw copy** of the original text / **default** (the FTS5 table with its stored copy of what the "
                 "system indexes: transformed text for app-level systems, original text otherwise; the measure "
-                "used before 2026-11). Only the first two compare like with like.", "",
+                "used before 2026-11). Each matches a deployment: default is the usual FTS5 table (an app-level "
+                "system then also keeps the original text elsewhere to show results); index only is a contentless "
+                "or external-content table; index + raw copy adds the original once, for any system.", "",
                 "| system | " + " | ".join(label for label, _ in size_srcs) + " |", "|---|" + "---|" * len(size_srcs)]
         for n in names:
             cells = []
