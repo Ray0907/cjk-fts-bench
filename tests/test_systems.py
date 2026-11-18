@@ -156,3 +156,69 @@ def test_jieba_big_uses_the_pinned_traditional_dictionary():
     assert list(big._j().cut("南投縣魚池鄉")) == ["南投縣", "魚池", "鄉"]
     assert list(default._j().cut("南投縣魚池鄉")) == ["南投", "縣魚", "池鄉"]
     assert big.miracl_langs == () and default.miracl_langs == ("zh",)
+
+
+
+def _doc_tokens(name, text):
+    """Tokens a system indexes for text (after its prep_doc), in order."""
+    system = SYSTEMS[name]
+    ok, why = system.available()
+    if not ok:
+        pytest.skip(why)
+    conn = sqlite3.connect(":memory:")
+    system.setup(conn)
+    system.create_table(conn, "d")
+    conn.execute("INSERT INTO d(rowid, text) VALUES (1, ?)", (system.prep_doc(text),))
+    conn.execute("CREATE VIRTUAL TABLE dv USING fts5vocab(d, instance)")
+    return [t for (t,) in conn.execute("SELECT term FROM dv ORDER BY offset")]
+
+
+def test_better_trigram_splits_han_and_kana_but_not_hangul():
+    """better-trigram's README: 'treating each CJK character as its own token'. Its CJK ranges cover Han, kana
+    and full-width forms but not Hangul, so Korean words get trigrams like Latin words (shorter words stay whole)."""
+    assert _doc_tokens("better_trigram", "東京スカ") == ["東", "京", "ス", "カ"]
+    assert _doc_tokens("better_trigram", "검색엔진을") == ["검색엔", "색엔진", "엔진을"]
+    assert _doc_tokens("better_trigram", "한국어 검색") == ["한국어", "검색"]
+
+
+def test_highlight_returns_original_text_only_for_tokenizer_level_systems():
+    """fts5-cjk's token offsets point into the original text, so highlight() marks the original. An app-level
+    table stores and therefore returns its transformed (bigram-rewritten) text."""
+    text = "台北市立圖書館今天休館"
+
+    def hl(name, match):
+        system = SYSTEMS[name]
+        ok, why = system.available()
+        if not ok:
+            pytest.skip(why)
+        conn = build(system)
+        conn.execute("INSERT INTO t(rowid, text) VALUES (99, ?)", (system.prep_doc(text),))
+        return conn.execute("SELECT highlight(t, 0, '[', ']') FROM t WHERE rowid = 99 AND t MATCH ?",
+                            (match,)).fetchone()[0]
+
+    assert hl("fts5_cjk", '"圖書"') == "台北市立[圖書]館今天休館"
+    assert hl("app_bigram", '"圖書"').split() == ["台北", "北市", "市立", "立圖", "[圖書]", "書館", "館今", "今天", "天休", "休館"]
+
+
+# app_bigram's CJK class (CJK_CLASS) is the benchmark's own; fts5-cjk counts 々〆〇 as CJK and folds half-width
+# kana and full-width ASCII. Where they differ, the two do not send the same ranking tokens. Changing CJK_CLASS
+# would change app_bigram's dev results, which cannot be re-run here, so the differences are recorded instead.
+@pytest.mark.parametrize("q", [
+    pytest.param("佐々木さんの話", marks=pytest.mark.xfail(reason="々 is CJK for fts5-cjk, not for app_bigram", strict=True)),
+    pytest.param("〆切は金曜", marks=pytest.mark.xfail(reason="〆 is CJK for fts5-cjk, not for app_bigram", strict=True)),
+    pytest.param("ｶﾀｶﾅの本", marks=pytest.mark.xfail(reason="fts5-cjk folds half-width kana", strict=True)),
+    pytest.param("ＳＱＬｉｔｅの本", marks=pytest.mark.xfail(reason="fts5-cjk folds full-width ASCII", strict=True)),
+    "東京の大学",
+])
+def test_bigram_systems_rank_with_same_tokens_beyond_han(q):
+    fold = str.maketrans("臺裡羣峯綫衞爲眞敎册祕啓淸靑", "台裏群峰線衛為真教冊秘啟清青")
+    assert _toks("fts5_cjk", q) == [t.translate(fold) for t in _toks("app_bigram", q)]
+
+
+def test_icu_segmenter_splits_hangul_only_at_spaces():
+    """ICU keeps a Korean word with its particle as one word, so 검색을 is never the token 검색."""
+    system = SYSTEMS["icu_segmenter"]
+    ok, why = system.available()
+    if not ok:
+        pytest.skip(why)
+    assert system.prep_doc("검색을 하다").split() == ["검색을", "하다"]

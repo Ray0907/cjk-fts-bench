@@ -435,7 +435,10 @@ class CExtension(System):
 
 class BetterTrigram(CExtension):
     name = "better_trigram"
-    description = "streetwriters/sqlite-better-trigram: trigram, with each CJK char as its own token."
+    description = (
+        "streetwriters/sqlite-better-trigram: space-bounded trigrams, with each Han or kana char as its own "
+        "token (its CJK ranges do not include Hangul, which gets trigrams)."
+    )
     tokenize = "better_trigram"
     so_name = "better_trigram.so"
     entrypoint = "sqlite3_bettertrigram_init"
