@@ -24,6 +24,7 @@ import time
 from collections import defaultdict
 
 from . import data_law, metrics, queries as queries_mod
+from .systems import take_errors
 
 TABLE = "docs"
 SEED = 42
@@ -94,14 +95,20 @@ def aggregate(rows, kind):
 
 
 def timed_search(system, conn, q, k, mode="search"):
+    """Returns (rowids, ms, error). error joins exceptions that escaped the system (the contract says
+    never raise) and SQLite errors the system recorded with bench.systems.record_error; None if none."""
+    take_errors()
     t0 = time.perf_counter()
-    err = None
+    errs = []
     try:
         fn = system.rank if mode == "rank" else system.search
         res = list(fn(conn, TABLE, q, k))
-    except Exception as e:  # contract says never raise; record instead of aborting the run
-        res, err = [], f"{type(e).__name__}: {e}"
-    return res, (time.perf_counter() - t0) * 1000, err
+    except Exception as e:  # record instead of aborting the run
+        res = []
+        errs.append(f"{type(e).__name__}: {e}")
+    ms = (time.perf_counter() - t0) * 1000
+    errs = take_errors() + errs
+    return res, ms, "; ".join(errs) if errs else None
 
 
 def run_systems(names, texts, evaluate, kind, systems):

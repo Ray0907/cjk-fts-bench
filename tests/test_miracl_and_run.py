@@ -70,3 +70,32 @@ def test_law_smoke(tmp_path):
     assert len(rows) == 10
     assert all(x["precision"] == 1.0 for x in rows)  # trigram substring is exact for >=3 chars
     assert "Failure examples" in report.render(r)
+
+
+def test_sqlite_errors_are_recorded_not_lost():
+    """A failing MATCH still returns [] (systems never raise), but the error reaches the result row."""
+    import sqlite3
+
+    from bench import systems
+
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE VIRTUAL TABLE docs USING fts5(text)")
+    conn.execute("INSERT INTO docs(rowid, text) VALUES (1, 'x')")
+    systems.take_errors()
+    assert systems.fts_match(conn, "no_such_table", '"x"', 5) == []
+    errs = systems.take_errors()
+    assert len(errs) == 1 and "no such table" in errs[0]
+
+    class Broken:
+        def search(self, conn, table, query, k):
+            return systems.fts_match(conn, table, "NEAR(", k)  # FTS5 syntax error
+
+    class Fine:
+        def search(self, conn, table, query, k):
+            return systems.fts_match(conn, table, systems.phrase(query), k)
+
+    res, _, err = run.timed_search(Broken(), conn, "x", 5)
+    assert res == [] and err and "syntax error" in err
+    res, _, err = run.timed_search(Fine(), conn, "x", 5)
+    assert res == [1] and err is None
+    assert systems.take_errors() == []

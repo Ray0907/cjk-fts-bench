@@ -40,6 +40,23 @@ def drop_run_unigrams(tokens: list[str], query: str) -> list[str]:
     return [t for t in tokens if not (len(t) == 1 and CJK_RUN.fullmatch(t) and t not in standalone)]
 
 
+# SQLite errors inside a system's search or ranking path are recorded here instead of being lost: a
+# search still returns [] (systems never raise), and the runner stores the messages in the query's
+# "error" field via take_errors().
+_errors: list[str] = []
+
+
+def record_error(e: Exception) -> None:
+    _errors.append(f"{type(e).__name__}: {e}")
+
+
+def take_errors() -> list[str]:
+    """Return and clear the errors recorded since the last call."""
+    out = list(_errors)
+    _errors.clear()
+    return out
+
+
 def like_pattern(q: str) -> str:
     return "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
 
@@ -52,7 +69,8 @@ def fts_match(conn: sqlite3.Connection, table: str, expr: str, k: int | None) ->
         params = (expr, k)
     try:
         return [r[0] for r in conn.execute(sql, params)]
-    except sqlite3.Error:
+    except sqlite3.Error as e:
+        record_error(e)
         return []
 
 
@@ -64,7 +82,8 @@ def like_match(conn: sqlite3.Connection, table: str, q: str, k: int | None) -> l
         params = (like_pattern(q), k)
     try:
         return [r[0] for r in conn.execute(sql, params)]
-    except sqlite3.Error:
+    except sqlite3.Error as e:
+        record_error(e)
         return []
 
 
@@ -112,7 +131,8 @@ class System:
             conn.execute(f"DELETE FROM temp.{qt}")
             conn.execute(f"INSERT INTO temp.{qt}(rowid, text) VALUES (1, ?)", (self.prep_doc(query),))
             rows = conn.execute(f"SELECT term FROM temp.{qt}_v ORDER BY offset").fetchall()
-        except sqlite3.Error:
+        except sqlite3.Error as e:
+            record_error(e)
             return []
         seen: dict[str, None] = {}
         for (term,) in rows:
@@ -378,7 +398,8 @@ class Fts5Cjk(CExtension):
             params = (query, k)
         try:
             return [r[0] for r in conn.execute(sql, params)]
-        except sqlite3.Error:
+        except sqlite3.Error as e:
+            record_error(e)
             return []
 
 
