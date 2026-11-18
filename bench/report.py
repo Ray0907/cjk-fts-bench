@@ -25,6 +25,8 @@ def render(res):
             out.append(f"- {k}: {md[k]}")
     for v in md.get("ext_versions", []):
         out.append(f"- {v}")
+    if md.get("tool_versions"):
+        out.append("- " + ", ".join(f"{k} {v}" for k, v in md["tool_versions"].items()))
     if md.get("limit_docs") or md.get("limit_queries"):
         out.append(f"- WARNING: smoke run (limit_docs={md.get('limit_docs')}, limit_queries={md.get('limit_queries')})")
     out.append("")

@@ -48,6 +48,7 @@ def test_end_to_end_miracl(tmp_path):
     r = json.loads(out.read_text())
     assert set(r["systems"]) == {"unicode61", "trigram"} and "missing" in r["skipped"]
     assert r["metadata"]["corpus_size"] == 20
+    assert r["metadata"]["tool_versions"].get("jieba")  # tool versions are recorded with every run
     t = r["systems"]["trigram"]
     assert len(t["queries"]) == 5 and t["index_bytes"] > 0 and t["build_seconds"] > 0
     for s in r["systems"].values():

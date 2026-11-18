@@ -136,10 +136,34 @@ def run_systems(names, texts, evaluate, kind, systems):
     return result, skipped
 
 
+def tool_versions():
+    """Versions of the tools app-level systems depend on: jieba, and Node.js with its ICU and Unicode data
+    (icu_segmenter's segmentation depends on ICU's dictionary, which changes between ICU releases)."""
+    import json
+    import shutil
+    import subprocess
+    v = {}
+    try:
+        import jieba
+        v["jieba"] = jieba.__version__
+    except Exception:  # noqa: BLE001
+        pass
+    node = shutil.which("node")
+    if node:
+        js = "JSON.stringify({node: process.version, icu: process.versions.icu, unicode: process.versions.unicode})"
+        try:
+            out = subprocess.run([node, "-p", js], capture_output=True, text=True, timeout=30, check=True)
+            v.update(json.loads(out.stdout))
+        except Exception:  # noqa: BLE001
+            pass
+    return v
+
+
 def metadata(task, n_docs, extra):
     md = {"task": task, "sqlite_version": sqlite3.sqlite_version, "python_version": platform.python_version(),
           "platform": platform.platform(), "corpus_size": n_docs, "seed": SEED,
-          "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")}
+          "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+          "tool_versions": tool_versions()}
     vf = os.path.join(data_law.ROOT, "ext", "build", "VERSIONS.txt")
     if os.path.exists(vf):  # written by ext/build_ext.sh
         md["ext_versions"] = open(vf, encoding="utf-8").read().strip().splitlines()
