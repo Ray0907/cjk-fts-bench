@@ -26,7 +26,8 @@
   "data_dir": "data/miracl",
   "raw_table_bytes": 49160192,
   "judged_passages_retained": 10486,
-  "driver": "audit/chunk_run.py (bench.run steps split across calls; index reopened between query chunks)"
+  "driver": "audit/chunk_run.py (bench.run steps split across calls; index reopened between query chunks)",
+  "provenance": "ko: re-run 2026-11-18 with the final code by audit/chunk_run.py (bench.run steps in resumable chunks); matched the earlier ko runs (audit run on ee3f11b and the variant experiment) on every query for all 12 systems, with equal index sizes."
  },
  "systems": {
   "unicode61": {

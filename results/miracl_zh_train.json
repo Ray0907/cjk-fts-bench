@@ -21,7 +21,8 @@
   "judged_passages_retained": 12029,
   "driver": "audit chunk_run.py (bench.run steps split across calls; index reopened between query chunks)",
   "raw_table_bytes": 39051264,
-  "index_bytes_contentless_source": "audit/sizes.jsonl corpus zh_train (audit/sizes.py, same sample; its 'default' equals index_bytes for every system)"
+  "index_bytes_contentless_source": "audit/sizes.jsonl corpus zh_train (audit/sizes.py, same sample; its 'default' equals index_bytes for every system)",
+  "provenance": "zh/ja: produced 2026-11-18 by audit/original/chunk_run.py (bench.run steps in resumable chunks) on cjk-fts-bench commit ee3f11b; index_bytes_contentless and raw_table_bytes merged from audit/sizes.jsonl by audit/merge_train_sizes.py; fts5_cjk_qfirst/fts5_cjk_qedge rows from the variant experiment (audit/qfirst/, same sample; its fts5_cjk rows equal this file's on every query). The Korean re-run with the final code matched the earlier runs on every query for all 12 systems."
  },
  "systems": {
   "unicode61": {
