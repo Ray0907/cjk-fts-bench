@@ -54,42 +54,88 @@ Write-up of the results: [SQLite FTS5 for Chinese, Japanese, Korean: 11 tokenize
 ## Leaderboard
 
 <!-- LEADERBOARD:START -->
-Best value per column in bold. n/a = not run (jieba segments Chinese only; `jieba_big` uses jieba's Traditional Chinese dictionary and runs on the law task only).
+MIRACL columns are nDCG@10. **dev** = the MIRACL dev queries the benchmark was developed on (`app_bigram_first` was chosen after looking at them); **train** = MIRACL train queries, held out: never used to choose or tune a system. Absolute values are not comparable across splits (different queries and a different 100,000-passage sample); compare systems within a column. Best value per column in bold. n/a = not run: jieba segments Chinese only; `jieba_big` uses jieba's Traditional Chinese dictionary and runs on the law task only; systems added after the dev run have no dev numbers. Latency is from one run (see Limits).
 
-| system | Law substring recall | MIRACL zh nDCG@10 | MIRACL ja nDCG@10 | MIRACL ko nDCG@10 | zh p50 ms | zh index MB |
+| system | Law substring recall | MIRACL zh dev | MIRACL zh train | MIRACL ja dev | MIRACL ja train | MIRACL ko dev | MIRACL ko train | zh dev p50 ms |
+|---|---|---|---|---|---|---|---|---|
+| `unicode61` | 4.9% | 0.008 | 0.015 | 0.128 | 0.126 | 0.352 | 0.346 | **0.04** |
+| `trigram` | 59.5% | 0.251 | 0.248 | 0.465 | 0.437 | 0.473 | 0.459 | 0.46 |
+| `trigram_like` | **100.0%** | 0.251 | 0.248 | 0.465 | 0.437 | 0.473 | 0.459 | 0.42 |
+| `app_bigram` | 98.4% | 0.379 | 0.348 | 0.536 | 0.520 | 0.510 | 0.489 | 2.03 |
+| `app_bigram_edge` | **100.0%** | **0.429** | 0.389 | 0.557 | 0.546 | 0.547 | 0.506 | 5.02 |
+| `app_bigram_first` | 98.4% | 0.423 | 0.382 | 0.560 | 0.547 | **0.549** | **0.511** | 3.31 |
+| `jieba` | 61.3% | 0.374 | 0.374 | n/a | n/a | n/a | n/a | 11.35 |
+| `jieba_big` | 71.6% | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
+| `icu_segmenter` | 71.1% | 0.406 | 0.391 | **0.569** | **0.562** | 0.359 | 0.355 | 12.40 |
+| `better_trigram` | **100.0%** | 0.419 | **0.401** | 0.457 | 0.426 | 0.403 | 0.399 | 50.36 |
+| `fts5_cjk` | **100.0%** | 0.378 | 0.343 | 0.535 | 0.519 | 0.506 | 0.484 | 2.02 |
+| `fts5_cjk_unigram` | **100.0%** | 0.377 | 0.346 | 0.536 | 0.520 | 0.507 | 0.483 | 3.76 |
+
+Law substring recall by query type. The overall figure depends on this mix: 162 of the 400 queries (40.5%) are one or two characters long.
+
+| system | 1 char (n=50) | 2-char words (n=100) | 3-char words (n=100) | 4+ char words (n=100) | non-word spans (n=50) | all (n=400) |
 |---|---|---|---|---|---|---|
-| `unicode61` | 4.9% | 0.008 | 0.128 | 0.352 | **0.04** | 69 |
-| `trigram` | 59.5% | 0.251 | 0.465 | 0.473 | 0.46 | 130 |
-| `trigram_like` | **100.0%** | 0.251 | 0.465 | 0.473 | 0.42 | 130 |
-| `app_bigram` | 98.4% | 0.379 | 0.536 | 0.510 | 2.03 | 118 |
-| `app_bigram_edge` | **100.0%** | **0.429** | 0.557 | 0.547 | 5.02 | 136 |
-| `app_bigram_first` | 98.4% | 0.423 | 0.560 | **0.549** | 3.31 | 127 |
-| `jieba` | 61.3% | 0.374 | n/a | n/a | 11.35 | 77 |
-| `jieba_big` | 71.6% | n/a | n/a | n/a | n/a | n/a |
-| `icu_segmenter` | 71.1% | 0.406 | **0.569** | 0.359 | 12.40 | **63** |
-| `better_trigram` | **100.0%** | 0.419 | 0.457 | 0.403 | 50.36 | 68 |
-| `fts5_cjk` | **100.0%** | 0.378 | 0.535 | 0.506 | 2.02 | 86 |
-| `fts5_cjk_unigram` | **100.0%** | 0.377 | 0.536 | 0.507 | 3.76 | 104 |
+| `unicode61` | 0.4% | 4.1% | 8.6% | 6.6% | 0.0% | 4.9% |
+| `trigram` | 0.0% | 0.0% | **100.0%** | **100.0%** | 76.0% | 59.5% |
+| `trigram_like` | **100.0%** | **100.0%** | **100.0%** | **100.0%** | **100.0%** | **100.0%** |
+| `app_bigram` | 87.1% | **100.0%** | **100.0%** | **100.0%** | **100.0%** | 98.4% |
+| `app_bigram_edge` | **100.0%** | **100.0%** | **100.0%** | **100.0%** | **100.0%** | **100.0%** |
+| `app_bigram_first` | 87.1% | **100.0%** | **100.0%** | **100.0%** | **100.0%** | 98.4% |
+| `jieba` | 20.5% | 61.5% | 71.2% | 84.7% | 35.1% | 61.3% |
+| `jieba_big` | 13.0% | 70.9% | 91.6% | 95.1% | 44.6% | 71.6% |
+| `icu_segmenter` | 25.0% | 68.5% | 85.0% | 96.9% | 42.8% | 71.1% |
+| `better_trigram` | **100.0%** | **100.0%** | **100.0%** | **100.0%** | **100.0%** | **100.0%** |
+| `fts5_cjk` | **100.0%** | **100.0%** | **100.0%** | **100.0%** | **100.0%** | **100.0%** |
+| `fts5_cjk_unigram` | **100.0%** | **100.0%** | **100.0%** | **100.0%** | **100.0%** | **100.0%** |
 
-Paired difference in nDCG@10 against `app_bigram` (95% bootstrap CI, randomization p):
+Paired difference in nDCG@10 against `app_bigram`, MIRACL **dev** (95% bootstrap CI, randomization p):
 
 | system | zh | ja | ko |
 |---|---|---|---|
-| `unicode61` | **-0.370** [-0.403, -0.339] p<0.0001 | **-0.408** [-0.432, -0.382] p<0.0001 | **-0.158** [-0.197, -0.120] p<0.0001 |
-| `trigram` | **-0.127** [-0.151, -0.104] p<0.0001 | **-0.070** [-0.086, -0.055] p<0.0001 | **-0.037** [-0.065, -0.007] p=0.0147 |
-| `trigram_like` | **-0.127** [-0.151, -0.104] p<0.0001 | **-0.070** [-0.086, -0.055] p<0.0001 | **-0.037** [-0.065, -0.007] p=0.0147 |
-| `app_bigram_edge` | **+0.050** [+0.034, +0.067] p<0.0001 | **+0.021** [+0.013, +0.030] p<0.0001 | **+0.037** [+0.023, +0.053] p<0.0001 |
-| `app_bigram_first` | **+0.045** [+0.030, +0.059] p<0.0001 | **+0.024** [+0.016, +0.032] p<0.0001 | **+0.039** [+0.023, +0.055] p<0.0001 |
+| `unicode61` | **-0.370** [-0.403, -0.339] p≤0.0001 | **-0.408** [-0.432, -0.382] p≤0.0001 | **-0.158** [-0.197, -0.120] p≤0.0001 |
+| `trigram` | **-0.127** [-0.151, -0.104] p≤0.0001 | **-0.070** [-0.086, -0.055] p≤0.0001 | **-0.037** [-0.065, -0.007] p=0.0147 |
+| `app_bigram_edge` | **+0.050** [+0.034, +0.067] p≤0.0001 | **+0.021** [+0.013, +0.030] p≤0.0001 | **+0.037** [+0.023, +0.053] p≤0.0001 |
+| `app_bigram_first` | **+0.045** [+0.030, +0.059] p≤0.0001 | **+0.024** [+0.016, +0.032] p≤0.0001 | **+0.039** [+0.023, +0.055] p≤0.0001 |
 | `jieba` | -0.005 [-0.025, +0.015] p=0.64 | n/a | n/a |
-| `jieba_big` | n/a | n/a | n/a |
-| `icu_segmenter` | **+0.028** [+0.006, +0.051] p=0.014 | **+0.033** [+0.018, +0.048] p=0.0002 | **-0.151** [-0.189, -0.113] p<0.0001 |
-| `better_trigram` | **+0.041** [+0.013, +0.068] p=0.0031 | **-0.079** [-0.102, -0.056] p<0.0001 | **-0.107** [-0.135, -0.079] p<0.0001 |
+| `icu_segmenter` | **+0.028** [+0.006, +0.051] p=0.014 | **+0.033** [+0.018, +0.048] p=0.0002 | **-0.151** [-0.189, -0.113] p≤0.0001 |
+| `better_trigram` | **+0.041** [+0.013, +0.068] p=0.0031 | **-0.079** [-0.102, -0.056] p≤0.0001 | **-0.107** [-0.135, -0.079] p≤0.0001 |
 | `fts5_cjk` | -0.001 [-0.006, +0.004] p=0.727 | -0.001 [-0.005, +0.003] p=0.719 | -0.004 [-0.013, +0.004] p=0.315 |
 | `fts5_cjk_unigram` | -0.002 [-0.007, +0.002] p=0.397 | +0.000 [-0.003, +0.004] p=0.824 | -0.003 [-0.010, +0.005] p=0.506 |
 
-Bold = the 95% CI excludes zero (no multiple-comparison correction; see Limits).
+Paired difference in nDCG@10 against `app_bigram`, MIRACL **train** (95% bootstrap CI, randomization p):
 
-Run environments: law: SQLite 3.53.1, Python 3.13.18, Linux-6.18.44-fc-v595-x86_64-with-glibc2.39; MIRACL zh: SQLite 3.50.4, Python 3.13.11, macOS-27.0.1-arm64-arm-64bit-Mach-O; MIRACL ja: SQLite 3.50.4, Python 3.13.11, macOS-27.0.1-arm64-arm-64bit-Mach-O; MIRACL ko: SQLite 3.50.4, Python 3.13.11, macOS-27.0.1-arm64-arm-64bit-Mach-O.
+| system | zh | ja | ko |
+|---|---|---|---|
+| `unicode61` | **-0.332** [-0.350, -0.315] p≤0.0001 | **-0.394** [-0.406, -0.382] p≤0.0001 | **-0.142** [-0.161, -0.123] p≤0.0001 |
+| `trigram` | **-0.100** [-0.111, -0.089] p≤0.0001 | **-0.083** [-0.091, -0.076] p≤0.0001 | **-0.030** [-0.044, -0.016] p≤0.0001 |
+| `app_bigram_edge` | **+0.041** [+0.033, +0.050] p≤0.0001 | **+0.026** [+0.022, +0.030] p≤0.0001 | **+0.017** [+0.008, +0.027] p=0.0006 |
+| `app_bigram_first` | **+0.034** [+0.027, +0.042] p≤0.0001 | **+0.026** [+0.022, +0.030] p≤0.0001 | **+0.022** [+0.013, +0.031] p≤0.0001 |
+| `jieba` | **+0.027** [+0.014, +0.040] p≤0.0001 | n/a | n/a |
+| `icu_segmenter` | **+0.043** [+0.030, +0.057] p≤0.0001 | **+0.041** [+0.033, +0.049] p≤0.0001 | **-0.134** [-0.153, -0.115] p≤0.0001 |
+| `better_trigram` | **+0.053** [+0.037, +0.069] p≤0.0001 | **-0.094** [-0.106, -0.083] p≤0.0001 | **-0.089** [-0.104, -0.075] p≤0.0001 |
+| `fts5_cjk` | **-0.004** [-0.007, -0.001] p=0.0144 | -0.001 [-0.003, +0.001] p=0.179 | **-0.005** [-0.010, -0.000] p=0.0597 |
+| `fts5_cjk_unigram` | -0.001 [-0.004, +0.001] p=0.269 | -0.000 [-0.002, +0.001] p=0.808 | **-0.006** [-0.011, -0.001] p=0.0285 |
+
+Bold = the 95% CI excludes zero (no multiple-comparison correction; see Limits). `trigram_like` ranks exactly like `trigram` (same ranking path) and is not repeated.
+
+Index size in MB (10^6 bytes) after VACUUM: **index only** (FTS5 `content=''`) / **index + one raw copy** of the original text / **default** (the FTS5 table with its stored copy of what the system indexes: transformed text for app-level systems, original text otherwise; the measure used before 2026-11). Only the first two compare like with like.
+
+| system | law | zh train | ja train | ko train |
+|---|---|---|---|---|
+| `unicode61` | 12.4 / 32.1 / 32.1 | 32.6 / 71.7 / 71.7 | 46.9 / 107.8 / 107.8 | 26.0 / 75.1 / 75.1 |
+| `trigram` | 28.4 / 48.0 / 48.0 | 96.1 / 135.2 / 135.2 | 110.1 / 171.0 / 171.0 | 84.0 / 133.2 / 133.2 |
+| `trigram_like` | 28.4 / 48.0 / 48.0 | 96.1 / 135.2 / 135.2 | 110.1 / 171.0 / 171.0 | 84.0 / 133.2 / 133.2 |
+| `app_bigram` | 16.0 / 35.7 / 57.7 | 43.0 / 82.0 / 122.3 | 55.8 / 116.6 / 191.0 | 32.6 / 81.8 / 115.2 |
+| `app_bigram_edge` | 19.1 / 38.8 / 65.9 | 50.5 / 89.6 / 142.3 | 63.8 / 124.6 / 213.2 | 52.3 / 101.4 / 173.7 |
+| `app_bigram_first` | 17.6 / 37.3 / 61.9 | 46.2 / 85.2 / 131.6 | 59.6 / 120.5 / 201.7 | 43.2 / 92.4 / 145.0 |
+| `jieba` | 9.3 / 28.9 / 34.8 | 26.6 / 65.6 / 80.0 | n/a | n/a |
+| `jieba_big` | 9.6 / 29.3 / 38.6 | n/a | n/a | n/a |
+| `icu_segmenter` | 8.3 / 27.9 / 29.3 | 23.0 / 62.0 / 65.6 | 28.3 / 89.2 / 95.5 | 25.7 / 74.9 / 74.4 |
+| `better_trigram` | 12.9 / 32.6 / 32.6 | 32.1 / 71.2 / 71.2 | 42.9 / 103.8 / 103.7 | 39.6 / 88.8 / 88.8 |
+| `fts5_cjk` | 19.1 / 38.8 / 38.8 | 50.5 / 89.6 / 89.6 | 64.3 / 125.1 / 125.1 | 52.3 / 101.5 / 101.4 |
+| `fts5_cjk_unigram` | 27.2 / 46.8 / 46.8 | 68.1 / 107.2 / 107.2 | 91.7 / 152.5 / 152.5 | 60.0 / 109.2 / 109.2 |
+
+Run environments: law: SQLite 3.53.1, Python 3.13.18, Node v22.23.5 (ICU 78.3), Linux-6.18.44-fc-v595-x86_64-with-glibc2.39; MIRACL zh dev: SQLite 3.50.4, Python 3.13.11, macOS-27.0.1-arm64-arm-64bit-Mach-O; MIRACL zh train: SQLite 3.53.1, Python 3.13.18, Linux-6.8.0-149-generic-aarch64-with-glibc2.35; MIRACL ja dev: SQLite 3.50.4, Python 3.13.11, macOS-27.0.1-arm64-arm-64bit-Mach-O; MIRACL ja train: SQLite 3.53.1, Python 3.13.18, Linux-6.8.0-149-generic-aarch64-with-glibc2.35; MIRACL ko dev: SQLite 3.50.4, Python 3.13.11, macOS-27.0.1-arm64-arm-64bit-Mach-O; MIRACL ko train: SQLite 3.53.1, Python 3.13.18, Node v22.23.5 (ICU 78.3), Linux-6.8.0-149-generic-aarch64-with-glibc2.35.
 <!-- LEADERBOARD:END -->
 
 ## Findings

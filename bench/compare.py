@@ -2,7 +2,7 @@
 
   python -m bench.compare results/miracl_zh.json fts5_cjk app_bigram [--metric ndcg10]
 
-Prints the mean difference (A - B), a 95% paired-bootstrap confidence interval, a two-sided paired
+Prints the mean difference (A - B), 95% and 90% paired-bootstrap confidence intervals, a two-sided paired
 randomization (sign-flip) p-value, and per-query wins/ties/losses. Deterministic (seed 42).
 """
 from __future__ import annotations
@@ -19,6 +19,7 @@ def paired(a: list[float], b: list[float], n_boot: int = 10000, seed: int = 42) 
     rng = random.Random(seed)
     boots = sorted(sum(d[rng.randrange(n)] for _ in range(n)) / n for _ in range(n_boot))
     lo, hi = boots[int(0.025 * n_boot)], boots[int(0.975 * n_boot) - 1]
+    lo90, hi90 = boots[int(0.05 * n_boot)], boots[int(0.95 * n_boot) - 1]
     extreme = 0
     for _ in range(n_boot):
         m = sum(x if rng.random() < 0.5 else -x for x in d) / n
@@ -28,7 +29,8 @@ def paired(a: list[float], b: list[float], n_boot: int = 10000, seed: int = 42) 
         "n": n,
         "mean_diff": mean,
         "ci95": (lo, hi),
-        "p_value": (extreme + 1) / (n_boot + 1),
+        "ci90": (lo90, hi90),  # for equivalence: the 90% CI inside +/-m is a two one-sided test at 5%
+        "p_value": (extreme + 1) / (n_boot + 1),  # floor 1 / (n_boot + 1): "p <= 0.0001" with 10,000
         "wins": sum(x > 1e-12 for x in d),
         "ties": sum(abs(x) <= 1e-12 for x in d),
         "losses": sum(x < -1e-12 for x in d),
@@ -49,7 +51,9 @@ def main(argv=None):
     res = paired([qa[k] for k in keys], [qb[k] for k in keys])
     lo, hi = res["ci95"]
     print(f"{args.metric}: {args.a} - {args.b} over {res['n']} queries")
-    print(f"  mean diff {res['mean_diff']:+.4f}, 95% CI [{lo:+.4f}, {hi:+.4f}], p = {res['p_value']:.4f}")
+    lo90, hi90 = res["ci90"]
+    print(f"  mean diff {res['mean_diff']:+.4f}, 95% CI [{lo:+.4f}, {hi:+.4f}], 90% CI [{lo90:+.4f}, {hi90:+.4f}], "
+          f"p = {res['p_value']:.4f}")
     print(f"  per query: {res['wins']} wins, {res['ties']} ties, {res['losses']} losses")
 
 
