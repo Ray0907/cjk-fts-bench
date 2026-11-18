@@ -57,6 +57,19 @@ def take_errors() -> list[str]:
     return out
 
 
+def run_first_unigrams(terms: list[str]) -> set[str]:
+    """Single-CJK-char terms that open a CJK run in a document-mode token stream.
+
+    For a tokenizer that indexes "first char, bigrams..., last char" per run (fts5-cjk's default),
+    a run's first char is exactly a 1-char CJK term followed by a bigram that starts with it.
+    """
+    return {
+        t
+        for t, nxt in zip(terms, terms[1:])
+        if len(t) == 1 and CJK_RUN.fullmatch(t) and len(nxt) == 2 and nxt[0] == t and CJK_RUN.fullmatch(nxt)
+    }
+
+
 def like_pattern(q: str) -> str:
     return "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
 
@@ -93,6 +106,8 @@ class System:
     tokenize = "unicode61"
     # MIRACL languages `--systems all` runs this system on; None = every language.
     miracl_langs: tuple[str, ...] | None = None
+    # Systems that differ from another only in the ranking path skip the substring task under `--systems all`.
+    ranking_only = False
 
     def available(self) -> tuple[bool, str]:
         return True, ""
@@ -119,6 +134,8 @@ class System:
     # Tokenizers that add extra single-char tokens in DOCUMENT mode only (not when FTS5 tokenizes a
     # MATCH query) set this, so the ranking query matches what a real MATCH would see.
     rank_drop_run_unigrams = False
+    # With rank_drop_run_unigrams, keep the unigram that opens each CJK run (an indexed term).
+    rank_keep_run_first = False
 
     def query_tokens(self, conn: sqlite3.Connection, query: str) -> list[str]:
         query = strip_punct(query)
@@ -143,7 +160,10 @@ class System:
             seen.setdefault(term, None)
         tokens = list(seen)
         if self.rank_drop_run_unigrams:
-            tokens = drop_run_unigrams(tokens, query)
+            kept = set(drop_run_unigrams(tokens, query))
+            if self.rank_keep_run_first:
+                kept |= run_first_unigrams([term for (term,) in rows])
+            tokens = [t for t in tokens if t in kept]
         return tokens
 
     def rank(self, conn: sqlite3.Connection, table: str, query: str, k: int | None) -> list[int]:
@@ -476,7 +496,29 @@ class Fts5CjkUnigram(Fts5Cjk):
     tokenize = "cjk unigram 1"
 
 
+class Fts5CjkQFirst(Fts5Cjk):
+    name = "fts5_cjk_qfirst"
+    description = (
+        "fts5_cjk (same index); ranking queries also keep the first char of each CJK run, a term "
+        "fts5-cjk already indexes (what its cjk_rank_query(text, 'first') sends). Substring search unchanged "
+        "(cjk_query())."
+    )
+    rank_keep_run_first = True
+    ranking_only = True  # search() is Fts5Cjk.search: the law task would repeat fts5_cjk
+
+
+class Fts5CjkQEdge(Fts5Cjk):
+    name = "fts5_cjk_qedge"
+    description = (
+        "fts5_cjk (same index); ranking queries keep the first and last char of each CJK run "
+        "(all document-mode tokens; what cjk_rank_query(text, 'edge') sends). Substring search unchanged "
+        "(cjk_query())."
+    )
+    rank_drop_run_unigrams = False
+    ranking_only = True  # search() is Fts5Cjk.search: the law task would repeat fts5_cjk
+
+
 SYSTEMS: dict[str, System] = {
     s.name: s
-    for s in (Unicode61(), Trigram(), TrigramLike(), AppBigram(), AppBigramEdge(), AppBigramFirst(), Jieba(), JiebaBig(), IcuSegmenter(), BetterTrigram(), Fts5Cjk(), Fts5CjkUnigram())
+    for s in (Unicode61(), Trigram(), TrigramLike(), AppBigram(), AppBigramEdge(), AppBigramFirst(), Jieba(), JiebaBig(), IcuSegmenter(), BetterTrigram(), Fts5Cjk(), Fts5CjkUnigram(), Fts5CjkQFirst(), Fts5CjkQEdge())
 }

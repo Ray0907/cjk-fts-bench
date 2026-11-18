@@ -14,7 +14,7 @@ document or test that shows them. A statement for which no source could be given
 
 | # | statement | source |
 |---|---|---|
-| 1 | 12 setups | `bench/systems.py` `SYSTEMS` (12 entries) |
+| 1 | 12 setups plus two ranking-query variants of fts5-cjk | `bench/systems.py` `SYSTEMS` (14 entries; `fts5_cjk_qfirst`, `fts5_cjk_qedge` are `ranking_only`) |
 | 2 | 46,138 Taiwan law articles | law `metadata.corpus_size` = 46138 |
 | 3 | 100,000 passages each | dev and train `metadata.corpus_size` = 100000 |
 | 4 | "two of which favoured fts5-cjk" | Corrections 2 (ranking) and 4 (index size measure) |
@@ -27,10 +27,10 @@ document or test that shows them. A statement for which no source could be given
 | 6 | trigram returns nothing for queries under 3 characters | law `systems.trigram.buckets.char1/word2` zero-result rate 100%; `tests/test_systems.py` KNOWN_LIMITS |
 | 7 | 85% of dictionary headwords in ≥3 law articles are 2 characters | `bench/queries.py` `word_doc_freq()` cache `data/law_dictfreq.json` (not committed; rebuilt by `bench.queries`): 10,167 of 11,975 headwords with freq ≥ 3 have length 2 (84.9%) |
 | 8 | held-out top: better_trigram zh 0.401, icu ja 0.562, app_bigram_first ko 0.511 | `stats.md` § Top system: zh train 0.4006, ja train 0.5615, ko train 0.5105 |
-| 9 | zh: icu, edge, first not significantly below better_trigram after Holm | `stats.md` zh train: Holm p 0.2594, 0.2594, 0.0564 |
-| 10 | ja: ICU significantly above every other system | `stats.md` ja train: every Holm p ≤ 0.0008 |
+| 9 | zh: icu, edge, fts5_cjk_qedge, first not significantly below better_trigram after Holm | `stats.md` zh train: Holm p 0.3825, 0.3825, 0.3825, 0.0752 (the Holm family includes the two fts5-cjk variants; without them first's Holm p is 0.0564) |
+| 10 | ja: ICU significantly above every other system | `stats.md` ja train: every Holm p ≤ 0.0010 |
 | 11 | first − app_bigram on train +0.034 / +0.026 / +0.022, 95% CI above zero | `stats.md` pairs: +0.0341 [+0.0266, +0.0416], +0.0263 [+0.0224, +0.0303], +0.0220 [+0.0135, +0.0307] |
-| 12 | first is top only in ko; zh 0.019 below better_trigram (p=0.019, Holm 0.056); ja 0.015 below ICU (significant) | `stats.md` § Top system: zh +0.0190 p=0.0188 Holm 0.0564; ja +0.0149 Holm 0.0008; ko top = app_bigram_first |
+| 12 | first is top only in ko; zh 0.019 below better_trigram (p=0.019, Holm 0.075); ja 0.015 below ICU (significant) | `stats.md` § Top system: zh +0.0190 p=0.0188 Holm 0.0752; ja +0.0149 Holm 0.0010; ko top = app_bigram_first |
 | 13 | first vs app_bigram index only +7% zh, +7% ja, +33% ko; with raw +4%, +3%, +13% | `stats.md` § Index size: +7.4 / +6.9 / +32.5%; +3.9 / +3.3 / +13.0% |
 | 14 | p50 first vs app_bigram: zh 3.3 vs 2.0, ja 32 vs 26, ko 38 vs 8 ms (dev) | dev `systems.{app_bigram_first,app_bigram}.buckets.all.p50_ms`: 3.31/2.03, 31.8/25.5, 37.8/8.2 |
 | 15 | first misses run-final single characters: law 87.1% char1, 98.4% overall | law `systems.app_bigram_first.buckets.char1.recall` = 0.871, `.all.recall` = 0.984; KNOWN_LIMITS (app_bigram_first, 鄉) |
@@ -73,6 +73,16 @@ document or test that shows them. A statement for which no source could be given
 | 47 | jieba_big ahead of ICU on 2-, 3-char words and spans; behind on single chars 13.0 vs 25.0% and 4+ 95.1 vs 96.9% | law `buckets.{word2,word3,span_nonword,char1,word4plus}.recall`: 70.9/68.5, 91.6/85.0, 44.6/42.8, 13.0/25.0, 95.1/96.9 |
 | 48 | segmenters miss 民國 inside 中華民國 | `tests/test_systems.py` KNOWN_LIMITS (icu_segmenter, 民國) |
 
+## fts5-cjk ranking-query variants
+
+| # | statement | source |
+|---|---|---|
+| 64 | qfirst − fts5_cjk +0.033 / +0.021 / +0.019 (train), same index | `stats.md` pairs: +0.0332, +0.0208, +0.0193, all p≤0.0001; identical index: `audit/qfirst/index_md5.txt`, equal `index_bytes` in train files |
+| 65 | qfirst 0.005 to 0.008 below app_bigram_first; significant; inside ±0.015 set before the test | `stats.md` pairs: −0.0049 (p=0.0016), −0.0068 (p≤0.0001), −0.0077 (p=0.0012); 90% CIs [−0.0075, −0.0023], [−0.0089, −0.0048], [−0.0116, −0.0039]; decision rule in the issue text and the audit's pre-registration |
+| 66 | qedge reproduces app_bigram_edge: identical on all 868 ko queries, within 0.006 elsewhere | `stats.md` pairs qedge − edge: ko 0/868/0 W/T/L, zh −0.0001, ja −0.0058 |
+| 67 | p50 ×1.7 zh, ×1.2 ja, ×5.0 ko against fts5_cjk | `audit/qfirst/cost.md` (from `audit/qfirst/qfirst_miracl_*_train.json`, one run): ×1.72, ×1.17, ×5.00 |
+| 68 | what the proposed `cjk_rank_query()` produces | fts5-cjk branch feat/cjk-rank-query; top-100 identity zh 1312/1312, ja 3477/3477 (edge) and 3475/3477 (first), ko 868/868 (validation in the fts5-cjk patch deliverables) |
+
 ## Systems, Method, Limits, Corrections
 
 | # | statement | source |
@@ -86,7 +96,7 @@ document or test that shows them. A statement for which no source could be given
 | 55 | bigram rewriting makes stored text 1.6 to 2.0 times the original | `audit/sizes.jsonl` app_bigram `stored_text_bytes / raw_text_bytes`: ko 1.61, zh 1.92, ja 2.04, law 2.01 |
 | 56 | full re-run gave identical per-query scores (dev) | author's re-run, commit 6c92441 ("quality scores are unchanged"); not re-verified (dev data unavailable) |
 | 57 | 162 of 400 law queries are one or two characters | law `queries[].query` lengths (generated in the leaderboard note) |
-| 58 | 50 paired comparisons, 25 per split; Bonferroni 0.001 | leaderboard paired tables: 8 systems × 3 languages + jieba (zh) per split; 0.05 / 50 |
+| 58 | 56 paired comparisons, 25 dev and 31 train; Bonferroni about 0.0009 | leaderboard paired tables: 8 systems × 3 languages + jieba (zh) per split, plus the two variants × 3 languages on train; 0.05 / 56 |
 | 59 | p≤0.0001 is the floor of 10,000 sign flips (1/10001) | `bench/compare.py` `p_value = (extreme + 1) / (n_boot + 1)` |
 | 60 | Corrections 4: fts5-cjk inverted index +15% to +60% | #29 (zh 17.6, ja 15.2, ko 60.3, law 19.7%) |
 | 61 | Corrections 4: jieba_big 71.6% vs 61.3%, ICU 71.1% | #46 |

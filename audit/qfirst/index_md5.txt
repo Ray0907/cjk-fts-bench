@@ -1,0 +1,9 @@
+zh fts5_cjk 395f7bfdf26e897e821aeda952d96f91
+zh fts5_cjk_qfirst 395f7bfdf26e897e821aeda952d96f91
+zh fts5_cjk_qedge 395f7bfdf26e897e821aeda952d96f91
+ja fts5_cjk a5736172b51d79b3ba5de15ec7b0e8e8
+ja fts5_cjk_qfirst a5736172b51d79b3ba5de15ec7b0e8e8
+ja fts5_cjk_qedge a5736172b51d79b3ba5de15ec7b0e8e8
+ko fts5_cjk 5d625b762b0458ac789a22cca57d77b7
+ko fts5_cjk_qfirst 5d625b762b0458ac789a22cca57d77b7
+ko fts5_cjk_qedge 5d625b762b0458ac789a22cca57d77b7

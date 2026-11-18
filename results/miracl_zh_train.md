@@ -22,6 +22,8 @@
 | better_trigram | 0.4006 | 0.8730 |
 | fts5_cjk | 0.3435 | 0.8326 |
 | fts5_cjk_unigram | 0.3462 | 0.8327 |
+| fts5_cjk_qfirst | 0.3767 | 0.8668 |
+| fts5_cjk_qedge | 0.3886 | 0.8658 |
 
 
 
@@ -40,6 +42,8 @@
 | better_trigram | 1.24 | 71.2 | 32.1 | 71.2 | 46.36 | 79.80 | 0 |
 | fts5_cjk | 5.72 | 89.6 | 50.5 | 89.6 | 2.16 | 7.63 | 0 |
 | fts5_cjk_unigram | 6.41 | 107.2 | 68.1 | 107.2 | 3.80 | 10.69 | 0 |
+| fts5_cjk_qfirst | 3.85 | 89.6 | 50.5 | 89.6 | 3.12 | 13.62 | 0 |
+| fts5_cjk_qedge | 3.86 | 89.6 | 50.5 | 89.6 | 4.53 | 16.01 | 0 |
 
 Index size, MB = 10^6 bytes, after VACUUM. default = the FTS5 table with its stored copy of what the system indexes (transformed text for app-level systems, original text otherwise). index only = the same table with content=''. index + raw = index only plus one plain table holding the original text (39.1 MB).
 
@@ -106,6 +110,18 @@ Index size, MB = 10^6 bytes, after VACUUM. default = the FTS5 table with its sto
 - `2012年夏季奥运会在哪里举办？`: relevant=1 returned=100 nDCG@10=0.000
 
 **fts5_cjk_unigram**
+
+- `1995年美国在任总统是谁？`: relevant=1 returned=100 nDCG@10=0.000
+- `2008年北京奥运会获得金牌数最多的国家是哪个？`: relevant=1 returned=100 nDCG@10=0.000
+- `2012年夏季奥运会在哪里举办？`: relevant=1 returned=100 nDCG@10=0.000
+
+**fts5_cjk_qfirst**
+
+- `1995年美国在任总统是谁？`: relevant=1 returned=100 nDCG@10=0.000
+- `2008年北京奥运会获得金牌数最多的国家是哪个？`: relevant=1 returned=100 nDCG@10=0.000
+- `2012年夏季奥运会在哪里举办？`: relevant=1 returned=100 nDCG@10=0.000
+
+**fts5_cjk_qedge**
 
 - `1995年美国在任总统是谁？`: relevant=1 returned=100 nDCG@10=0.000
 - `2008年北京奥运会获得金牌数最多的国家是哪个？`: relevant=1 returned=100 nDCG@10=0.000

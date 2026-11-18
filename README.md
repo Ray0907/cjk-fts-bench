@@ -10,7 +10,8 @@ of a single average.
 Write-up of the results: [SQLite FTS5 for Chinese, Japanese, Korean: 11 tokenizers tested](https://raytien.me/writing/cjk-fts-bench/)
 ([繁體中文](https://raytien.me/writing/cjk-fts-bench/zh/)).
 
-- **12 setups**, from the FTS5 defaults to C extensions and app-level segmenters
+- **12 setups**, from the FTS5 defaults to C extensions and app-level segmenters, plus two
+  ranking-query variants of fts5-cjk
 - **2 tasks**: exact substring search over 46,138 Taiwan law articles (Traditional Chinese), and
   ranking on [MIRACL](https://github.com/project-miracl/miracl) with human relevance labels in
   Chinese, Japanese and Korean (100,000 passages each), on the dev queries the benchmark was built
@@ -38,14 +39,15 @@ merely not significant is not called a tie.
   dictionary headwords that occur in at least 3 law articles).
 - **No setup ranks best in all three languages.** On the held-out queries the top system is
   `better_trigram` in Chinese (0.401), `icu_segmenter` in Japanese (0.562) and `app_bigram_first`
-  in Korean (0.511). The Chinese lead is not clear-cut: `icu_segmenter`, `app_bigram_edge` and
-  `app_bigram_first` are not significantly below `better_trigram` after Holm correction. In Japanese,
+  in Korean (0.511). The Chinese lead is not clear-cut: `icu_segmenter`, `app_bigram_edge`,
+  `fts5_cjk_qedge` and `app_bigram_first` are not significantly below `better_trigram` after Holm
+  correction. In Japanese,
   ICU is significantly above every other system.
 - **One setup for all three languages: bigrams plus each CJK run's first character, added to
   documents and to queries (`app_bigram_first`).** It was chosen on dev, and its gain over plain
   bigrams holds on the held-out queries: +0.034 (zh), +0.026 (ja), +0.022 (ko), each 95% interval
   above zero. It is the top system only in Korean: in Chinese it is 0.019 below `better_trigram`
-  (p=0.019, 0.056 after Holm correction) and in Japanese 0.015 below ICU (significant). Cost over
+  (p=0.019, 0.075 after Holm correction) and in Japanese 0.015 below ICU (significant). Cost over
   plain bigrams: inverted index +7% (zh), +7% (ja), +33% (ko) on the train samples, or +4%, +3%,
   +13% counting one raw copy of the text; ranking queries p50 zh 3.3 vs 2.0 ms, ja 32 vs 26 ms,
   ko 38 vs 8 ms (dev, one run). Like plain bigrams, it misses a single character that occurs only
@@ -71,13 +73,17 @@ merely not significant is not called a tie.
   +9%, +7%, +24%, +9%. (The benchmark used to report it as smaller: its old size measure counted
   the bigram-rewritten text that app-level tables store.) Unlike app-level bigrams, `highlight()` and
   `snippet()` return the original text. Ranking was measured with the benchmark's common query rule,
-  not with fts5-cjk's helpers. better-trigram ranks at the top in Chinese but is slow (p50 50 ms on
+  which leaves out the run-edge characters fts5-cjk indexes. A ranking query that also sends each
+  run's first character (`fts5_cjk_qfirst`, what the `cjk_rank_query()` helper proposed for fts5-cjk
+  produces) adds +0.033 (zh), +0.021 (ja), +0.019 (ko) on held-out queries with the same index. That
+  leaves it 0.005 to 0.008 below `app_bigram_first`: significant, but inside the ±0.015 bound set
+  before the test. It costs query time (p50 ×1.7 zh, ×1.2 ja, ×5.0 ko against fts5_cjk). better-trigram ranks at the top in Chinese but is slow (p50 50 ms on
   zh) and falls behind in Japanese and Korean.
 
 ## Leaderboard
 
 <!-- LEADERBOARD:START -->
-MIRACL columns are nDCG@10. **dev** = the MIRACL dev queries the benchmark was developed on (`app_bigram_first` was chosen after looking at them); **train** = MIRACL train queries, held out: never used to choose or tune a system. Absolute values are not comparable across splits (different queries and a different 100,000-passage sample); compare systems within a column. Best value per column in bold. n/a = not run: jieba segments Chinese only; `jieba_big` uses jieba's Traditional Chinese dictionary and runs on the law task only; systems added after the dev run have no dev numbers. Latency is from one run (see Limits).
+MIRACL columns are nDCG@10. **dev** = the MIRACL dev queries the benchmark was developed on (`app_bigram_first` was chosen after looking at them); **train** = MIRACL train queries, held out: never used to choose or tune a system. Absolute values are not comparable across splits (different queries and a different 100,000-passage sample); compare systems within a column. Best value per column in bold. n/a = not run: jieba segments Chinese only; `jieba_big` uses jieba's Traditional Chinese dictionary and runs on the law task only; systems added after the dev run have no dev numbers; `fts5_cjk_qfirst`/`_qedge` change only fts5_cjk's ranking query, so their substring results are fts5_cjk's. Latency is from one run (see Limits).
 
 | system | Law substring recall | MIRACL zh dev | MIRACL zh train | MIRACL ja dev | MIRACL ja train | MIRACL ko dev | MIRACL ko train | zh dev p50 ms |
 |---|---|---|---|---|---|---|---|---|
@@ -93,6 +99,8 @@ MIRACL columns are nDCG@10. **dev** = the MIRACL dev queries the benchmark was d
 | `better_trigram` | **100.0%** | 0.419 | **0.401** | 0.457 | 0.426 | 0.403 | 0.399 | 50.36 |
 | `fts5_cjk` | **100.0%** | 0.378 | 0.343 | 0.535 | 0.519 | 0.506 | 0.484 | 2.02 |
 | `fts5_cjk_unigram` | **100.0%** | 0.377 | 0.346 | 0.536 | 0.520 | 0.507 | 0.483 | 3.76 |
+| `fts5_cjk_qfirst` | n/a | n/a | 0.377 | n/a | 0.540 | n/a | 0.503 | n/a |
+| `fts5_cjk_qedge` | n/a | n/a | 0.389 | n/a | 0.540 | n/a | 0.506 | n/a |
 
 Law substring recall by query type. The overall figure depends on this mix: 162 of the 400 queries (40.5%) are one or two characters long.
 
@@ -138,6 +146,8 @@ Paired difference in nDCG@10 against `app_bigram`, MIRACL **train** (95% bootstr
 | `better_trigram` | **+0.053** [+0.037, +0.069] p≤0.0001 | **-0.094** [-0.106, -0.083] p≤0.0001 | **-0.089** [-0.104, -0.075] p≤0.0001 |
 | `fts5_cjk` | **-0.004** [-0.007, -0.001] p=0.0144 | -0.001 [-0.003, +0.001] p=0.179 | **-0.005** [-0.010, -0.000] p=0.0597 |
 | `fts5_cjk_unigram` | -0.001 [-0.004, +0.001] p=0.269 | -0.000 [-0.002, +0.001] p=0.808 | **-0.006** [-0.011, -0.001] p=0.0285 |
+| `fts5_cjk_qfirst` | **+0.029** [+0.022, +0.037] p≤0.0001 | **+0.019** [+0.015, +0.024] p≤0.0001 | **+0.014** [+0.006, +0.023] p=0.0004 |
+| `fts5_cjk_qedge` | **+0.041** [+0.033, +0.050] p≤0.0001 | **+0.020** [+0.016, +0.024] p≤0.0001 | **+0.017** [+0.008, +0.027] p=0.0006 |
 
 Bold = the 95% CI excludes zero (no multiple-comparison correction; see Limits). `trigram_like` ranks exactly like `trigram` (same ranking path) and is not repeated.
 
@@ -157,6 +167,8 @@ Index size in MB (10^6 bytes) after VACUUM: **index only** (FTS5 `content=''`) /
 | `better_trigram` | 12.9 / 32.6 / 32.6 | 32.1 / 71.2 / 71.2 | 42.9 / 103.8 / 103.7 | 39.6 / 88.8 / 88.8 |
 | `fts5_cjk` | 19.1 / 38.8 / 38.8 | 50.5 / 89.6 / 89.6 | 64.3 / 125.1 / 125.1 | 52.3 / 101.5 / 101.4 |
 | `fts5_cjk_unigram` | 27.2 / 46.8 / 46.8 | 68.1 / 107.2 / 107.2 | 91.7 / 152.5 / 152.5 | 60.0 / 109.2 / 109.2 |
+| `fts5_cjk_qfirst` | n/a | 50.5 / 89.6 / 89.6 | 64.3 / 125.1 / 125.1 | 52.3 / 101.5 / 101.4 |
+| `fts5_cjk_qedge` | n/a | 50.5 / 89.6 / 89.6 | 64.3 / 125.1 / 125.1 | 52.3 / 101.5 / 101.4 |
 
 Run environments: law: SQLite 3.53.1, Python 3.13.18, Node v22.23.5 (ICU 78.3), Linux-6.18.44-fc-v595-x86_64-with-glibc2.39; MIRACL zh dev: SQLite 3.50.4, Python 3.13.11, macOS-27.0.1-arm64-arm-64bit-Mach-O; MIRACL zh train: SQLite 3.53.1, Python 3.13.18, Linux-6.8.0-149-generic-aarch64-with-glibc2.35; MIRACL ja dev: SQLite 3.50.4, Python 3.13.11, macOS-27.0.1-arm64-arm-64bit-Mach-O; MIRACL ja train: SQLite 3.53.1, Python 3.13.18, Linux-6.8.0-149-generic-aarch64-with-glibc2.35; MIRACL ko dev: SQLite 3.50.4, Python 3.13.11, macOS-27.0.1-arm64-arm-64bit-Mach-O; MIRACL ko train: SQLite 3.53.1, Python 3.13.18, Node v22.23.5 (ICU 78.3), Linux-6.8.0-149-generic-aarch64-with-glibc2.35.
 <!-- LEADERBOARD:END -->
@@ -173,7 +185,11 @@ Run environments: law: SQLite 3.53.1, Python 3.13.18, Node v22.23.5 (ICU 78.3), 
    most of all in Korean (p50 96 ms against 38 ms for `app_bigram_first` and 8 ms for plain bigrams).
    The last character on its own was not tested. The gain needs the query-side terms: fts5-cjk indexes
    the first and last characters, but under the common query rule its queries do not send them, and it
-   ranks within ±0.01 of plain bigrams.
+   ranks within ±0.01 of plain bigrams. Sending them from fts5-cjk's unchanged index recovers the gain,
+   in a test whose decision rule was fixed before it ran on the held-out queries: with the first character
+   (`fts5_cjk_qfirst`) it comes within 0.005 to 0.008 of `app_bigram_first`, and with both
+   (`fts5_cjk_qedge`) it reproduces `app_bigram_edge` (identical on all 868 Korean queries, within 0.006
+   elsewhere).
 2. **What helps Chinese can hurt Japanese and Korean.** better-trigram makes each Han and kana
    character its own token and splits other text, Hangul included, into trigrams (its README and the
    token test in `tests/test_systems.py`). Against plain bigrams it gains in Chinese (+0.041 dev,
@@ -210,6 +226,8 @@ Run environments: law: SQLite 3.53.1, Python 3.13.18, Node v22.23.5 (ICU 78.3), 
 | `better_trigram` | [streetwriters/sqlite-better-trigram](https://github.com/streetwriters/sqlite-better-trigram) C extension: space-bounded trigrams, with each Han or kana character as its own token. Its CJK ranges do not include Hangul, so Korean gets trigrams. |
 | `fts5_cjk` | [Ray0907/fts5-cjk](https://github.com/Ray0907/fts5-cjk) C extension: bigrams inside the tokenizer. Substring queries use its documented `cjk_query()` helper. |
 | `fts5_cjk_unigram` | fts5-cjk with its documented `unigram 1` option. |
+| `fts5_cjk_qfirst` | `fts5_cjk`'s table and substring search; its ranking query also sends each CJK run's first character, which fts5-cjk indexes on its own. What the proposed `cjk_rank_query(text, 'first')` produces. Held-out (train) results only. |
+| `fts5_cjk_qedge` | Same, sending each run's first and last character (`cjk_rank_query(text, 'edge')`). Held-out results only. |
 
 Each system is set up the way its own documentation describes. Not run yet:
 [Lindera](https://github.com/lindera/lindera) (a Japanese/Korean morphological analyser, the most
@@ -283,8 +301,8 @@ tokenizer-level table the original.
   query. Systems that emit many tokens per query (better-trigram, edge terms) pay for it most.
 - Law recall is an average over a fixed mix of query types; 162 of the 400 queries are one or two
   characters long. Read the per-type table, not only the overall figure.
-- The leaderboard reports 50 paired comparisons (25 per split) with no multiple-comparison
-  correction (Bonferroni threshold 0.001). Results with p between 0.01 and 0.05 should be treated as
+- The leaderboard reports 56 paired comparisons (25 dev, 31 train) with no multiple-comparison
+  correction (Bonferroni threshold about 0.0009). Results with p between 0.01 and 0.05 should be treated as
   suggestive. `p≤0.0001` is the smallest p that 10,000 sign flips can give (1/10001): no flip was as
   extreme as the observed difference.
 - ko dev has only 213 queries, so its confidence intervals are wider; ko train has 868.
@@ -320,6 +338,10 @@ Problems found while building the benchmark, kept here so the results can be jud
      equivalence test (90% interval inside ±0.01) or by the actual difference.
    - *Held-out validation.* Every system was run on the MIRACL train queries. The first-character
      gain holds; "jieba does no better than bigrams on Simplified Chinese" does not (+0.027).
+   - *fts5-cjk's ranking query.* The common rule leaves fts5-cjk's run-edge characters out of its
+     queries, so the benchmark measured only half of what its index offers. Two ranking variants that
+     send them, `fts5_cjk_qfirst` and `fts5_cjk_qedge`, were added under a decision rule fixed before
+     the held-out run; they correspond to a `cjk_rank_query()` helper proposed for fts5-cjk.
    - *Smaller fixes.* Law precision counted a query that returned nothing as 100% precise; it is now
      undefined for such a query. SQLite errors are recorded instead of being silently turned into
      empty results (none occurred). The p-value floor is written p≤0.0001. `trigram_like` is no longer

@@ -22,6 +22,8 @@
 | better_trigram | 0.3993 | 0.8188 |
 | fts5_cjk | 0.4835 | 0.9125 |
 | fts5_cjk_unigram | 0.4830 | 0.9118 |
+| fts5_cjk_qfirst | 0.5028 | 0.9239 |
+| fts5_cjk_qedge | 0.5059 | 0.9230 |
 
 
 
@@ -39,6 +41,8 @@
 | better_trigram | 2.75 | 88.8 | 39.6 | 88.8 | 1.22 | 8.15 | 0 |
 | fts5_cjk | 2.69 | 101.4 | 52.3 | 101.5 | 9.24 | 54.06 | 0 |
 | fts5_cjk_unigram | 3.60 | 109.2 | 60.0 | 109.2 | 15.42 | 71.62 | 0 |
+| fts5_cjk_qfirst | 3.27 | 101.4 | 52.3 | 101.5 | 43.22 | 100.37 | 0 |
+| fts5_cjk_qedge | 3.28 | 101.4 | 52.3 | 101.5 | 83.09 | 194.08 | 0 |
 
 Index size, MB = 10^6 bytes, after VACUUM. default = the FTS5 table with its stored copy of what the system indexes (transformed text for app-level systems, original text otherwise). index only = the same table with content=''. index + raw = index only plus one plain table holding the original text (49.2 MB).
 
@@ -99,6 +103,18 @@ Index size, MB = 10^6 bytes, after VACUUM. default = the FTS5 table with its sto
 - `2차 세계대전은 몇 년도에 일어났는가?`: relevant=1 returned=100 nDCG@10=0.000
 
 **fts5_cjk_unigram**
+
+- `1987년 미국 대통령은 누구인가요?`: relevant=1 returned=100 nDCG@10=0.000
+- `2019년 미국의 대통령은 누구인가?`: relevant=1 returned=100 nDCG@10=0.000
+- `2차 세계 대전에 참전했던 동아시아 국가는 무엇인가?`: relevant=1 returned=100 nDCG@10=0.000
+
+**fts5_cjk_qfirst**
+
+- `1865년 일본 천황은 누구인가요?`: relevant=1 returned=100 nDCG@10=0.000
+- `1987년 미국 대통령은 누구인가요?`: relevant=1 returned=100 nDCG@10=0.000
+- `2019년 미국의 대통령은 누구인가?`: relevant=1 returned=100 nDCG@10=0.000
+
+**fts5_cjk_qedge**
 
 - `1987년 미국 대통령은 누구인가요?`: relevant=1 returned=100 nDCG@10=0.000
 - `2019년 미국의 대통령은 누구인가?`: relevant=1 returned=100 nDCG@10=0.000

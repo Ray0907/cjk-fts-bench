@@ -21,6 +21,8 @@
 | better_trigram | 0.4262 | 0.8583 |
 | fts5_cjk | 0.5190 | 0.9454 |
 | fts5_cjk_unigram | 0.5202 | 0.9453 |
+| fts5_cjk_qfirst | 0.5398 | 0.9596 |
+| fts5_cjk_qedge | 0.5404 | 0.9591 |
 
 
 
@@ -38,6 +40,8 @@
 | better_trigram | 1.84 | 103.7 | 42.9 | 103.8 | 134.74 | 246.35 | 0 |
 | fts5_cjk | 4.99 | 125.1 | 64.3 | 125.1 | 24.81 | 51.51 | 0 |
 | fts5_cjk_unigram | 5.62 | 152.5 | 91.7 | 152.5 | 38.54 | 81.93 | 0 |
+| fts5_cjk_qfirst | 4.42 | 125.1 | 64.3 | 125.1 | 28.79 | 56.84 | 0 |
+| fts5_cjk_qedge | 4.37 | 125.1 | 64.3 | 125.1 | 42.79 | 73.22 | 0 |
 
 Index size, MB = 10^6 bytes, after VACUUM. default = the FTS5 table with its stored copy of what the system indexes (transformed text for app-level systems, original text otherwise). index only = the same table with content=''. index + raw = index only plus one plain table holding the original text (60.9 MB).
 
@@ -98,6 +102,18 @@ Index size, MB = 10^6 bytes, after VACUUM. default = the FTS5 table with its sto
 - `ABCのテレビシリーズ『LOST』が最初に放送されたのはいつ`: relevant=1 returned=100 nDCG@10=0.000
 
 **fts5_cjk_unigram**
+
+- `2019年、アメリカ合衆国の大統領は誰ですか？`: relevant=2 returned=100 nDCG@10=0.000
+- `2024年夏季オリンピックの開催地はどこ`: relevant=3 returned=100 nDCG@10=0.000
+- `ABCのテレビシリーズ『LOST』が最初に放送されたのはいつ`: relevant=1 returned=100 nDCG@10=0.000
+
+**fts5_cjk_qfirst**
+
+- `2019年、アメリカ合衆国の大統領は誰ですか？`: relevant=2 returned=100 nDCG@10=0.000
+- `2024年夏季オリンピックの開催地はどこ`: relevant=3 returned=100 nDCG@10=0.000
+- `ABCのテレビシリーズ『LOST』が最初に放送されたのはいつ`: relevant=1 returned=100 nDCG@10=0.000
+
+**fts5_cjk_qedge**
 
 - `2019年、アメリカ合衆国の大統領は誰ですか？`: relevant=2 returned=100 nDCG@10=0.000
 - `2024年夏季オリンピックの開催地はどこ`: relevant=3 returned=100 nDCG@10=0.000

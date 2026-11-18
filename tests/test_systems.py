@@ -222,3 +222,28 @@ def test_icu_segmenter_splits_hangul_only_at_spaces():
     if not ok:
         pytest.skip(why)
     assert system.prep_doc("검색을 하다").split() == ["검색을", "하다"]
+
+
+@pytest.mark.parametrize("q", ["中国俄罗斯族有多少人？", "臺灣最高的山是哪一座", "台北 101 有多高?", "魚池鄉 abc 鄉"])
+def test_fts5_cjk_query_variants_send_the_app_level_tokens(q):
+    """fts5_cjk_qfirst / _qedge only add the run-edge unigrams fts5-cjk already indexes to the ranking query,
+    so they send the same tokens as app_bigram_first / app_bigram_edge (up to fts5-cjk's variant folding)."""
+    fold = str.maketrans("臺裡羣峯綫衞爲眞敎册祕啓淸靑", "台裏群峰線衛為真教冊秘啟清青")
+    # Order can differ (a char that ends one run and stands alone later); OR-ed tokens are a set.
+    assert sorted(_toks("fts5_cjk_qfirst", q)) == sorted(t.translate(fold) for t in _toks("app_bigram_first", q))
+    assert sorted(_toks("fts5_cjk_qedge", q)) == sorted(t.translate(fold) for t in _toks("app_bigram_edge", q))
+
+
+def test_fts5_cjk_query_variants_keep_the_search_path():
+    """Only ranking queries change; the substring task still goes through cjk_query()."""
+    for name in ("fts5_cjk_qfirst", "fts5_cjk_qedge"):
+        assert type(SYSTEMS[name]).search is type(SYSTEMS["fts5_cjk"]).search
+        assert SYSTEMS[name].tokenize == SYSTEMS["fts5_cjk"].tokenize
+
+
+def test_ranking_only_variants_skip_the_law_task_but_not_miracl():
+    from bench.run import pick_systems
+
+    law, ko = pick_systems("all", SYSTEMS), pick_systems("all", SYSTEMS, lang="ko")
+    assert "fts5_cjk_qfirst" not in law and "fts5_cjk_qedge" not in law and "fts5_cjk" in law
+    assert "fts5_cjk_qfirst" in ko and "fts5_cjk_qedge" in ko and "jieba" not in ko

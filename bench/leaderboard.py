@@ -121,7 +121,8 @@ def build() -> str:
             "never used to choose or tune a system. Absolute values are not comparable across splits (different "
             "queries and a different 100,000-passage sample); compare systems within a column. Best value per "
             "column in bold. n/a = not run: jieba segments Chinese only; `jieba_big` uses jieba's Traditional "
-            "Chinese dictionary and runs on the law task only; systems added after the dev run have no dev numbers. "
+            "Chinese dictionary and runs on the law task only; systems added after the dev run have no dev numbers; "
+            "`fts5_cjk_qfirst`/`_qedge` change only fts5_cjk's ranking query, so their substring results are fts5_cjk's. "
             "Latency is from one run (see Limits).", "", *_table(names, cols)]
 
     if law:

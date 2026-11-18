@@ -213,10 +213,13 @@ def metadata(task, n_docs, extra):
 
 def pick_systems(arg, systems, lang=None):
     """'all' or comma-separated names. For MIRACL (lang given), 'all' leaves out systems whose miracl_langs
-    excludes the language (jieba outside zh, jieba_big everywhere); naming a system runs it regardless."""
+    excludes the language (jieba outside zh, jieba_big everywhere); for the law task (no lang) it leaves out
+    ranking_only systems, whose substring search is another system's. Naming a system runs it regardless."""
     if arg == "all":
+        if lang is None:
+            return [n for n, s in systems.items() if not getattr(s, "ranking_only", False)]
         return [n for n, s in systems.items()
-                if lang is None or getattr(s, "miracl_langs", None) is None or lang in s.miracl_langs]
+                if getattr(s, "miracl_langs", None) is None or lang in s.miracl_langs]
     names = [n for n in arg.split(",") if n]
     bad = [n for n in names if n not in systems]
     if bad:
