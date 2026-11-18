@@ -351,7 +351,7 @@ Problems found while building the benchmark, kept here so the results can be jud
    These came from an independent audit, which reproduced the law task and recomputed the published
    statistics from the committed results, and from a re-run on held-out queries. Dev results could not be re-run (the dev data was not available
    to the audit), so changes that would alter them, such as aligning `app_bigram`'s CJK character
-   class with fts5-cjk's, are listed as open issues rather than made.
+   class with fts5-cjk's, are listed in [`docs/follow-ups.md`](docs/follow-ups.md) rather than made.
 
 ## Reproduce
 
